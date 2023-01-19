@@ -15,7 +15,7 @@
     - 32-bit: AArch32/A32/T32
     - 64-bit: AArch64/A64
 
--data types:
+- data types:
     - (B)yte: 8 bits
     - (H)alf-word: 16 bits
     - (W)ord: 32 bits
