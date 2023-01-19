@@ -135,17 +135,17 @@ uint64_t gift_64_encrypt(uint64_t m, const uint64_t key[2])
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
                 m = gift_64_subcells(m);
 #ifdef DEBUG
-                printf("GIFT_64_ENCRYPT round %d, subcells: %lx\n",
+                printf("GIFT_64_ENCRYPT round %2d, subcells:      %016lx\n",
                        round, m);
 #endif
                 m = gift_64_permbits(m);
 #ifdef DEBUG
-                printf("GIFT_64_ENCRYPT round %d, permbits: %lx\n",
+                printf("GIFT_64_ENCRYPT round %2d, permbits:      %016lx\n",
                        round, m);
 #endif
                 m ^= round_keys[round];
 #ifdef DEBUG
-                printf("GIFT_64_ENCRYPT round %d, add round key: %lx\n",
+                printf("GIFT_64_ENCRYPT round %2d, add round key: %016lx\n",
                        round, m);
 #endif
         }
@@ -163,17 +163,17 @@ uint64_t gift_64_decrypt(uint64_t m, const uint64_t key[2])
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
                 m ^= round_keys[round];
 #ifdef DEBUG
-                printf("GIFT_64_DECRYPT round %d, add round key: %lx\n",
+                printf("GIFT_64_DECRYPT round %2d, add round key: %016lx\n",
                        round, m);
 #endif
                 m = gift_64_permbits_inv(m);
 #ifdef DEBUG
-                printf("GIFT_64_DECRYPT round %d, permbits inv: %lx\n",
+                printf("GIFT_64_DECRYPT round %2d, permbits inv:  %016lx\n",
                        round, m);
 #endif
                 m = gift_64_subcells_inv(m);
 #ifdef DEBUG
-                printf("GIFT_64_DECRYPT round %d, subcells inv: %lx\n",
+                printf("GIFT_64_DECRYPT round %2d, subcells inv:  %016lx\n",
                        round, m);
 #endif
         }
