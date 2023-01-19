@@ -2,10 +2,10 @@ CC	= clang
 TARGET 	= aarch64-linux-gnu
 SYSROOT	= $(HOME)/odroid_sysroot
 FLAGS 	= --target=$(TARGET) --sysroot=$(SYSROOT) -fuse-ld=lld -z notext -lz --verbose
-UFLAGS	= -O0 -Wall
+UFLAGS	= -O0 -Wall -DDEBUG
 
-SOURCE_FILES 	= gift.c gift.S
-TARGET_OUT 	= gift
+SOURCE_FILES 	= benchmark.c gift.c gift.S
+TARGET_OUT 	= benchmark
 
 .PHONY: all clean
 

@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define ROUNDS 28
+#define ROUNDS_GIFT_64 28
 
-// implementation of GIFT-64 in C, without any intrinsics
+// implementation of GIFT-64 in pure C, without any intrinsics
 
 static const int sbox[] = {
         0x1, 0xa, 0x4, 0xc, 0x6, 0xf, 0x3, 0x9,
@@ -38,7 +38,7 @@ static const int round_constant[] = {
         0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A, 0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
 };
 
-uint64_t gift_64_subcells(uint64_t cipher_state)
+static uint64_t gift_64_subcells(uint64_t cipher_state)
 {
         uint64_t new_cipher_state = 0UL;
         for (size_t i = 0; i < 16; i++) {
@@ -50,7 +50,19 @@ uint64_t gift_64_subcells(uint64_t cipher_state)
         return new_cipher_state;
 }
 
-uint64_t gift_64_permbits(uint64_t cipher_state)
+static uint64_t gift_64_subcells_inv(uint64_t cipher_state)
+{
+        uint64_t new_cipher_state = 0UL;
+        for (size_t i = 0; i < 16; i++) {
+                int nibble = (cipher_state >> (i * 4)) & 0xf;
+                nibble = sbox_inv[nibble];
+                new_cipher_state |= (uint64_t)nibble << i * 4;
+        }
+
+        return new_cipher_state;
+}
+
+static uint64_t gift_64_permbits(uint64_t cipher_state)
 {
         uint64_t new_cipher_state = 0UL;
         for (size_t i = 0; i < 64; i++) {
@@ -61,62 +73,110 @@ uint64_t gift_64_permbits(uint64_t cipher_state)
         return new_cipher_state;
 }
 
-uint64_t gift_64_add_round_key(uint64_t cipher_state,
-                               uint64_t key_state[2],
-                               int round)
+static uint64_t gift_64_permbits_inv(uint64_t cipher_state)
 {
-        uint32_t v = (key_state[0] >> 0 ) & 0xffff;
-        uint32_t u = (key_state[0] >> 16) & 0xffff;
-
-        // add round key (RK=U||V)
-        for (size_t i = 0; i < 16; i++) {
-                int key_bit_v   = (v >> i)  & 0x1;
-                int key_bit_u   = (u >> i)  & 0x1;
-                cipher_state ^= (uint64_t)key_bit_v << (i * 4);
-                cipher_state ^= (uint64_t)key_bit_u << (i * 4 + 1);
+        uint64_t new_cipher_state = 0UL;
+        for (size_t i = 0; i < 64; i++) {
+                int bit = (cipher_state >> i) & 0x1;
+                new_cipher_state |= (uint64_t)bit << perm_inv[i];
         }
 
-        // add single bit
-        cipher_state ^= (1UL << 63);
+        return new_cipher_state;
+}
 
-        // add round constants
-        cipher_state ^= (uint64_t)((round_constant[round] >> 0) & 0x1) << 3;
-        cipher_state ^= (uint64_t)((round_constant[round] >> 1) & 0x1) << 7;
-        cipher_state ^= (uint64_t)((round_constant[round] >> 2) & 0x1) << 11;
-        cipher_state ^= (uint64_t)((round_constant[round] >> 3) & 0x1) << 15;
-        cipher_state ^= (uint64_t)((round_constant[round] >> 4) & 0x1) << 19;
-        cipher_state ^= (uint64_t)((round_constant[round] >> 5) & 0x1) << 23;
+static void gift_64_generate_round_keys(uint64_t *round_keys,
+                                        const uint64_t key[2],
+                                        int rounds)
+{
+        uint64_t key_state[] = {key[0], key[1]};
+        for (int round = 0; round < rounds; round++) {
+                uint32_t v = (key_state[0] >> 0 ) & 0xffff;
+                uint32_t u = (key_state[0] >> 16) & 0xffff;
 
-        // update key state
-        int k0 = (key_state[0] >> 0 ) & 0xffffUL;
-        int k1 = (key_state[0] >> 16) & 0xffffUL;
-        k0 = (k0 >> 12) | ((k0 & 0xfff) << 4);
-        k1 = (k1 >> 2 ) | ((k1 & 0x3  ) << 14);
-        key_state[0] >>= 32;
-        key_state[0] |= (key_state[1] & 0xffffffffUL) << 32;
-        key_state[1] >>= 32;
-        key_state[1] |= ((uint64_t)k0 << 32) | ((uint64_t)k1 << 48);
+                // add round key (RK=U||V)
+                round_keys[round] = 0;
+                for (size_t i = 0; i < 16; i++) {
+                        int key_bit_v   = (v >> i)  & 0x1;
+                        int key_bit_u   = (u >> i)  & 0x1;
+                        round_keys[round] ^= (uint64_t)key_bit_v << (i * 4);
+                        round_keys[round] ^= (uint64_t)key_bit_u << (i * 4 + 1);
+                }
 
-        return cipher_state;
+                // add single bit
+                round_keys[round] ^= (1UL << 63);
+
+                // add round constants
+                round_keys[round] ^= (uint64_t)((round_constant[round] >> 0) & 0x1) << 3;
+                round_keys[round] ^= (uint64_t)((round_constant[round] >> 1) & 0x1) << 7;
+                round_keys[round] ^= (uint64_t)((round_constant[round] >> 2) & 0x1) << 11;
+                round_keys[round] ^= (uint64_t)((round_constant[round] >> 3) & 0x1) << 15;
+                round_keys[round] ^= (uint64_t)((round_constant[round] >> 4) & 0x1) << 19;
+                round_keys[round] ^= (uint64_t)((round_constant[round] >> 5) & 0x1) << 23;
+
+                // update key state
+                int k0 = (key_state[0] >> 0 ) & 0xffffUL;
+                int k1 = (key_state[0] >> 16) & 0xffffUL;
+                k0 = (k0 >> 12) | ((k0 & 0xfff) << 4);
+                k1 = (k1 >> 2 ) | ((k1 & 0x3  ) << 14);
+                key_state[0] >>= 32;
+                key_state[0] |= (key_state[1] & 0xffffffffUL) << 32;
+                key_state[1] >>= 32;
+                key_state[1] |= ((uint64_t)k0 << 32) | ((uint64_t)k1 << 48);
+        }
 }
 
 uint64_t gift_64_encrypt(uint64_t m, const uint64_t key[2])
 {
-        uint64_t key_state[2] = { key[0], key[1] };
-        for (int round = 0; round < ROUNDS; round++) {
+        // generate round keys
+        uint64_t round_keys[ROUNDS_GIFT_64];
+        gift_64_generate_round_keys(round_keys, key, ROUNDS_GIFT_64);
+
+        // round loop
+        for (int round = 0; round < ROUNDS_GIFT_64; round++) {
                 m = gift_64_subcells(m);
-                printf("%d: after SubCells: %lx\n", round, m);
+#ifdef DEBUG
+                printf("GIFT_64_ENCRYPT round %d, subcells: %lx\n",
+                       round, m);
+#endif
                 m = gift_64_permbits(m);
-                printf("%d: after PermBits: %lx\n", round, m);
-                m = gift_64_add_round_key(m, key_state, round);
-                printf("%d: after AddRoundKey: %lx\n", round, m);
+#ifdef DEBUG
+                printf("GIFT_64_ENCRYPT round %d, permbits: %lx\n",
+                       round, m);
+#endif
+                m ^= round_keys[round];
+#ifdef DEBUG
+                printf("GIFT_64_ENCRYPT round %d, add round key: %lx\n",
+                       round, m);
+#endif
         }
 
         return m;
 }
 
-int main(int argc, char *argv[])
+uint64_t gift_64_decrypt(uint64_t m, const uint64_t key[2])
 {
-        uint64_t key_state[] = { 0x0UL, 0x0UL };
-        printf("%lx\n", gift_64_encrypt(0x0UL, key_state));
+        // generate round keys
+        uint64_t round_keys[ROUNDS_GIFT_64];
+        gift_64_generate_round_keys(round_keys, key, ROUNDS_GIFT_64);
+
+        // round loop (in reverse)
+        for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
+                m ^= round_keys[round];
+#ifdef DEBUG
+                printf("GIFT_64_DECRYPT round %d, add round key: %lx\n",
+                       round, m);
+#endif
+                m = gift_64_permbits_inv(m);
+#ifdef DEBUG
+                printf("GIFT_64_DECRYPT round %d, permbits inv: %lx\n",
+                       round, m);
+#endif
+                m = gift_64_subcells_inv(m);
+#ifdef DEBUG
+                printf("GIFT_64_DECRYPT round %d, subcells inv: %lx\n",
+                       round, m);
+#endif
+        }
+
+        return m;
 }
