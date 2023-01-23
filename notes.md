@@ -25,10 +25,8 @@
 - registers:
     - W[0-31]: 32-bit general-purpose
         - subset: X[0-31]: 64-bit general-purpose
-    - V/Q[0-31]: 128-bit vector/quad-float
-        - subset: D/S/H/B[0-31]
-        - vector arithmetic: `FADD V0.2D, V1.2D, V2.2D`
-            - treat elements as B/H/W/D
+    - V/Q[0-31]: 128-bit vector/float
+        - floating-point register: D/S/H[0-31] (double-/single-/half-precision)
     - WZR/XZR: 32/64-bit zero register
     - SP: 64-bit stack pointer (must be 16 byte aligned on AArch64)
 

@@ -1,12 +1,13 @@
 #include "gift.h"
+#include "gift_sliced.h"
+#include "gift_neon.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 int main(int argc, char *argv[])
 {
-        uint64_t key[] = { 0x12345678UL, 0x12319132UL };
-        uint64_t m = 0xbadeaffeUL;
-        uint64_t c = gift_64_encrypt(m, key);
-        uint64_t m1 = gift_64_decrypt(c, key);
-        printf("m=%lx, c=%lx, m1=%lx\n", m, c, m1);
+        uint64_t m[8] = {0x1234UL};
+        gift_64_sliced_encrypt(m, NULL);
 }
