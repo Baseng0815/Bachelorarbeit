@@ -8,6 +8,6 @@
 
 int main(int argc, char *argv[])
 {
-        uint64_t m[8] = {0x1234UL};
+        uint64_t m[8] = {[1] = 0x2};
         gift_64_sliced_encrypt(m, NULL);
 }
