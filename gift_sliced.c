@@ -45,17 +45,6 @@ static void bits_pack(uint64_t m[8])
         swapmove(&m[3], &m[7], 0x0f0f0f0f0f0f0f0fUL, 4);
 }
 
-static void print_unpacked(uint64_t m[8])
-{
-        uint64_t m1[8];
-        memcpy(m1, m, 8 * sizeof(m[0]));
-        bits_pack(m1);
-        for (size_t i = 0; i < 8; i++) {
-                printf("%lx ", m1[i]);
-        }
-        printf("\n");
-}
-
 // also packs bits so we can directly xor them with the cipher state
 static void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8],
                                                const uint64_t key[2],
