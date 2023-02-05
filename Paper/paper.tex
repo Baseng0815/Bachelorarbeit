@@ -1,0 +1,106 @@
+\documentclass[12pt]{report}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{ulem} % underline
+\usepackage{hyperref} % hyperlinks
+\usepackage{hyphenat}
+\usepackage{bookmark}
+\usepackage{systeme} % systems of equation
+\usepackage{parcolumns} % multiple column parallel typesetting
+\usepackage{float} % H float specifier
+\usepackage[english]{babel} % comment this for Angelsächsisch
+\usepackage{graphicx} % including graphics
+\usepackage{sourcecodepro} % best font
+\usepackage{listings} % source code listings
+\usepackage[utf8]{inputenc} % necessary for proper unicode support
+% \usepackage[a4paper, top=1cm, left=2cm, right=2cm, includeheadfoot]{geometry} % customize page geometry
+
+% umlauts in lstlistings env
+\lstset{
+    literate={ö}{{\"o}}1
+    {ä}{{\"a}}1
+    {ü}{{\"u}}1
+    {Ö}{{\"O}}1
+    {Ä}{{\"A}}1
+    {Ü}{{\"U}}1
+}
+
+\lstset{
+    basicstyle=\footnotesize\ttfamily,
+    breaklines=true
+}
+
+\lstset{
+    numbers=left,
+    stepnumber=1,
+    firstnumber=1,
+    numberfirstline=true
+}
+
+\providecommand{\lxor}{\veebar}
+\renewcommand{\proofname}{Beweis.}
+\newcommand{\sref}[1]{\textsuperscript{\ref{#1}}}
+
+\title{
+\textbf{Efficient Implementation Strategies for Block Ciphers on ARMv8}\\
+{\footnotesize Bachelorarbeit}
+}
+\author{Bastian Engel}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\chapter*{Abstract}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
+incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
+nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
+fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim id est laborum.
+
+\chapter*{Declaration}
+
+I hereby declare that ...
+
+\tableofcontents
+
+\chapter{Introduction}
+\section{Block ciphers}
+
+Modern-day communication relies on ...
+
+\subsection{GIFT}
+
+GIFT is a lightweight block cipher based on ...
+
+\subsubsection{Substitution layer}
+
+\subsubsection{Permutation layer}
+
+\subsubsection{Round key addition}
+
+\subsubsection{Round key extraction}
+
+\subsection{Camellia}
+
+\section{The ARMv8 platform}
+
+With small devices, embedded processors and ASICs becoming ever more ubiquitous
+and essential in areas like medicine or automotive design, the need for ...
+
+\chapter{A simple implementation}
+
+\chapter{Optimizations through bitslicing}
+
+\chapter{Leveraging NEON advanced SIMD instructions}
+
+\chapter*{Acknowledgements}
+
+I want to thank ...
+
+\end{document}
