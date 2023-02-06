@@ -356,30 +356,32 @@ void gift_128_encrypt(uint64_t c[2], uint64_t m[2], const uint64_t key[2])
         }
 }
 
-/* void gift_128_decrypt(uint64_t c[2], uint64_t m[2], const uint64_t key[2]) */
-/* { */
-/*         // generate round keys */
-/*         uint64_t round_keys[ROUNDS_GIFT_64]; */
-/*         gift_64_generate_round_keys(round_keys, key, ROUNDS_GIFT_64); */
+void gift_128_decrypt(uint64_t m[2], uint64_t c[2], const uint64_t key[2])
+{
+        m[0] = c[0];
+        m[1] = c[1];
 
-/*         // round loop (in reverse) */
-/*         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) { */
-/*                 m ^= round_keys[round]; */
-/* #ifdef DEBUG */
-/*                 printf("GIFT_64_DECRYPT round %2d, add round key: %016lx\n", */
-/*                        round, m); */
-/* #endif */
-/*                 m = gift_64_permbits_inv(m); */
-/* #ifdef DEBUG */
-/*                 printf("GIFT_64_DECRYPT round %2d, permbits inv:  %016lx\n", */
-/*                        round, m); */
-/* #endif */
-/*                 m = gift_64_subcells_inv(m); */
-/* #ifdef DEBUG */
-/*                 printf("GIFT_64_DECRYPT round %2d, subcells inv:  %016lx\n", */
-/*                        round, m); */
-/* #endif */
-/*         } */
+        // generate round keys
+        uint64_t round_keys[ROUNDS_GIFT_128];
+        gift_128_generate_round_keys(round_keys, key);
 
-/*         return m; */
-/* } */
+        // round loop (in reverse)
+        for (int round = ROUNDS_GIFT_128 - 1; round >= 0; round--) {
+                m[0] ^= round_keys[2 * round + 0];
+                m[1] ^= round_keys[2 * round + 1];
+#ifdef DEBUG
+                printf("GIFT_128_DECRYPT round %2d, add round key: [%016lx, %016lx]\n",
+                       round, m[0], m[1]);
+#endif
+                gift_128_permbits_inv(m);
+#ifdef DEBUG
+                printf("GIFT_128_DECRYPT round %2d, permbits inv:  [%016lx, %016lx]\n",
+                       round, m[0], m[1]);
+#endif
+                gift_128_subcells_inv(m);
+#ifdef DEBUG
+                printf("GIFT_128_DECRYPT round %2d, subcells inv:  [%016lx, %016lx]\n",
+                       round, m[0], m[1]);
+#endif
+        }
+}

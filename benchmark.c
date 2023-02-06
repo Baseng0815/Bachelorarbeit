@@ -18,10 +18,10 @@ int main(int argc, char *argv[])
 
         // benchmark gift_64_encrypt
         uint64_t t0, t1;
-        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0));
-        gift_64_encrypt(m[0], key);
-        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1));
-        printf("gift_64_encrypt: took %ld cycles\n", t1 - t0);
+        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0)); */
+        /* gift_64_encrypt(m[0], key); */
+        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1)); */
+        /* printf("gift_64_encrypt: took %ld cycles\n", t1 - t0); */
 
         // benchmark gift_128_encrypt
         asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0));
@@ -29,9 +29,14 @@ int main(int argc, char *argv[])
         asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1));
         printf("gift_128_encrypt: took %ld cycles\n", t1 - t0);
 
-        // benchmark gift_64_sliced_encrypt
         asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0));
-        gift_64_sliced_encrypt(c, m, key);
+        gift_128_decrypt(m, c, key);
         asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1));
-        printf("gift_64_sliced_encrypt: took %ld cycles\n", t1 - t0);
+        printf("gift_128_decrypt: took %ld cycles\n", t1 - t0);
+
+        // benchmark gift_64_sliced_encrypt
+        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0)); */
+        /* gift_64_sliced_encrypt(c, m, key); */
+        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1)); */
+        /* printf("gift_64_sliced_encrypt: took %ld cycles\n", t1 - t0); */
 }

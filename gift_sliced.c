@@ -14,7 +14,16 @@ static const int round_constant[] = {
         0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A, 0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
 };
 
-static void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n)
+static void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n);
+static void bits_pack(uint64_t m[8]);
+static void print_unpacked(uint64_t m[8]);
+static void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8]);
+static void gift_64_sliced_subcells(uint64_t s[8]);
+static void gift_64_sliced_subcells(uint64_t s[8]);
+static void gift_64_sliced_subcells_inv(uint64_t s[8]);
+static void gift_64_sliced_permute(uint64_t s[8]);
+
+void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n)
 {
         uint64_t t = ((*a >> n) ^ *b) & m;
         *b ^= t;
@@ -25,7 +34,7 @@ static void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n)
 // m[0] = a0 b0 c0 d0 e0 f0 g0 h0 a8 b8 c8 d8 e8 f8 g8 h8 ...
 // m[1] = a1 b1 c1 d1 e1 f1 g1 h1 a9 b9 c9 d9 e9 f9 g9 h9 ...
 // ...
-static void bits_pack(uint64_t m[8])
+void bits_pack(uint64_t m[8])
 {
         // take care not to shift mask bits out of the register
         swapmove(&m[0], &m[1], 0x5555555555555555UL, 1);
@@ -45,8 +54,20 @@ static void bits_pack(uint64_t m[8])
         swapmove(&m[3], &m[7], 0x0f0f0f0f0f0f0f0fUL, 4);
 }
 
+void print_unpacked(uint64_t m[8])
+{
+        uint64_t m1[8];
+        memcpy(m1, m, 8 * sizeof(m[0]));
+        bits_pack(m1);
+        for (size_t i = 0; i < 8; i++) {
+                printf("%lx ", m1[i]);
+        }
+
+        printf("\n");
+}
+
 // also packs bits so we can directly xor them with the cipher state
-static void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8],
+void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8],
                                                const uint64_t key[2],
                                                int rounds)
 {
@@ -94,7 +115,7 @@ static void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8],
         }
 }
 
-static void gift_64_sliced_subcells(uint64_t s[8])
+void gift_64_sliced_subcells(uint64_t s[8])
 {
         for (size_t i = 0; i < 2; i++) {
                 size_t j = i * 4;
@@ -109,7 +130,24 @@ static void gift_64_sliced_subcells(uint64_t s[8])
         }
 }
 
-static void gift_64_sliced_permute(uint64_t s[8])
+
+void gift_64_sliced_subcells_inv(uint64_t s[8])
+{
+        for (size_t i = 0; i < 2; i++) {
+                size_t j = i * 4;
+                uint64_t t  = s[j + 3];
+                s[j + 2]    ^= t        & s[j + 1];
+                s[j + 0]    = ~s[j + 0];
+                s[j + 1]    ^= s[j + 0];
+                s[j + 3]    =  s[j + 0] ^ s[j + 2];
+                s[j + 2]    ^= t        | s[j + 1];
+                //uint64_t t  =  s[j + 0] ^ (s[j + 1] & s[j + 3]);
+                s[j + 0]    = t ^ (s[j + 1] & s[j + 3]);
+                s[j + 1]    ^= s[j + 0] & s[j + 2];
+        }
+}
+
+void gift_64_sliced_permute(uint64_t s[8])
 {
         uint8_t src[8][8];
         uint8_t *dst = (uint8_t*)s;
