@@ -229,6 +229,7 @@ void gift_128_generate_round_keys(uint64_t *round_keys, const uint64_t key[2])
         uint64_t key_state[] = {key[0], key[1]};
         for (int round = 0; round < ROUNDS_GIFT_128; round++) {
                 uint32_t v = (key_state[0] >> 0 ) & 0xffffffff;
+                // TODO fix this nonsense
                 uint32_t u = (key_state[0] >> 64) & 0xffffffff;
 
                 // add round key (RK=U||V)
@@ -298,7 +299,7 @@ uint64_t gift_64_encrypt(uint64_t m, const uint64_t key[2])
         return m;
 }
 
-uint64_t gift_64_decrypt(uint64_t m, const uint64_t key[2])
+uint64_t gift_64_decrypt(uint64_t c, const uint64_t key[2])
 {
         // generate round keys
         uint64_t round_keys[ROUNDS_GIFT_64];
@@ -306,27 +307,27 @@ uint64_t gift_64_decrypt(uint64_t m, const uint64_t key[2])
 
         // round loop (in reverse)
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
-                m ^= round_keys[round];
+                c ^= round_keys[round];
 #ifdef DEBUG
                 printf("GIFT_64_DECRYPT round %2d, add round key: %016lx\n",
-                       round, m);
+                       round, c);
 #endif
-                m = gift_64_permbits_inv(m);
+                c = gift_64_permbits_inv(c);
 #ifdef DEBUG
                 printf("GIFT_64_DECRYPT round %2d, permbits inv:  %016lx\n",
-                       round, m);
+                       round, c);
 #endif
-                m = gift_64_subcells_inv(m);
+                c = gift_64_subcells_inv(c);
 #ifdef DEBUG
                 printf("GIFT_64_DECRYPT round %2d, subcells inv:  %016lx\n",
-                       round, m);
+                       round, c);
 #endif
         }
 
-        return m;
+        return c;
 }
 
-void gift_128_encrypt(uint64_t c[2], uint64_t m[2], const uint64_t key[2])
+void gift_128_encrypt(uint64_t c[2], const uint64_t m[2], const uint64_t key[2])
 {
         c[0] = m[0];
         c[1] = m[1];
@@ -356,7 +357,7 @@ void gift_128_encrypt(uint64_t c[2], uint64_t m[2], const uint64_t key[2])
         }
 }
 
-void gift_128_decrypt(uint64_t m[2], uint64_t c[2], const uint64_t key[2])
+void gift_128_decrypt(uint64_t m[2], const uint64_t c[2], const uint64_t key[2])
 {
         m[0] = c[0];
         m[1] = c[1];

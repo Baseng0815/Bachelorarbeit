@@ -16,12 +16,12 @@ static const int round_constant[] = {
 
 static void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n);
 static void bits_pack(uint64_t m[8]);
-static void print_unpacked(uint64_t m[8]);
-static void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8]);
-static void gift_64_sliced_subcells(uint64_t s[8]);
+static void print_unpacked(const uint64_t m[8]);
+static void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8], const uint64_t key[2]);
 static void gift_64_sliced_subcells(uint64_t s[8]);
 static void gift_64_sliced_subcells_inv(uint64_t s[8]);
 static void gift_64_sliced_permute(uint64_t s[8]);
+static void gift_64_sliced_permute_inv(uint64_t s[8]);
 
 void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n)
 {
@@ -54,7 +54,7 @@ void bits_pack(uint64_t m[8])
         swapmove(&m[3], &m[7], 0x0f0f0f0f0f0f0f0fUL, 4);
 }
 
-void print_unpacked(uint64_t m[8])
+void print_unpacked(const uint64_t m[8])
 {
         uint64_t m1[8];
         memcpy(m1, m, 8 * sizeof(m[0]));
@@ -67,12 +67,10 @@ void print_unpacked(uint64_t m[8])
 }
 
 // also packs bits so we can directly xor them with the cipher state
-void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8],
-                                               const uint64_t key[2],
-                                               int rounds)
+void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8], const uint64_t key[2])
 {
         uint64_t key_state[] = {key[0], key[1]};
-        for (int round = 0; round < rounds; round++) {
+        for (int round = 0; round < ROUNDS_GIFT_SLICED_64; round++) {
                 uint32_t v = (key_state[0] >> 0 ) & 0xffff;
                 uint32_t u = (key_state[0] >> 16) & 0xffff;
 
@@ -98,9 +96,9 @@ void gift_64_sliced_generate_round_keys(uint64_t round_keys[][8],
 
                 // copy and pack bits
                 round_keys[round][1] = round_keys[round][2] =
-                round_keys[round][3] = round_keys[round][4] =
-                round_keys[round][5] = round_keys[round][6] =
-                round_keys[round][7] = round_keys[round][0];
+                        round_keys[round][3] = round_keys[round][4] =
+                        round_keys[round][5] = round_keys[round][6] =
+                        round_keys[round][7] = round_keys[round][0];
                 bits_pack(round_keys[round]);
 
                 // update key state
@@ -141,8 +139,7 @@ void gift_64_sliced_subcells_inv(uint64_t s[8])
                 s[j + 1]    ^= s[j + 0];
                 s[j + 3]    =  s[j + 0] ^ s[j + 2];
                 s[j + 2]    ^= t        | s[j + 1];
-                //uint64_t t  =  s[j + 0] ^ (s[j + 1] & s[j + 3]);
-                s[j + 0]    = t ^ (s[j + 1] & s[j + 3]);
+                s[j + 0]    = t         ^ (s[j + 1] & s[j + 3]);
                 s[j + 1]    ^= s[j + 0] & s[j + 2];
         }
 }
@@ -177,12 +174,41 @@ void gift_64_sliced_permute(uint64_t s[8])
         dst[57] = src[7][7];
 }
 
-void gift_64_sliced_encrypt(uint64_t c[8], uint64_t m[8], const uint64_t key[2])
+void gift_64_sliced_permute_inv(uint64_t s[8])
+{
+        uint8_t src[8][8];
+        uint8_t *dst = (uint8_t*)s;
+        memcpy(src, s, sizeof(src));
+
+        dst[0]  = src[0][0]; dst[8]  = src[1][2]; dst[16] = src[2][4];
+        dst[24] = src[3][6]; dst[32] = src[0][6]; dst[40] = src[1][0];
+        dst[48] = src[2][2]; dst[56] = src[3][4]; dst[1]  = src[0][4];
+        dst[9]  = src[1][6]; dst[17] = src[2][0]; dst[25] = src[3][2];
+        dst[33] = src[0][2]; dst[41] = src[1][4]; dst[49] = src[2][6];
+        dst[57] = src[3][0]; dst[2]  = src[4][0]; dst[10] = src[5][2];
+        dst[18] = src[6][4]; dst[26] = src[7][6]; dst[34] = src[4][6];
+        dst[42] = src[5][0]; dst[50] = src[6][2]; dst[58] = src[7][4];
+        dst[3]  = src[4][4]; dst[11] = src[5][6]; dst[19] = src[6][0];
+        dst[27] = src[7][2]; dst[35] = src[4][2]; dst[43] = src[5][4];
+        dst[51] = src[6][6]; dst[59] = src[7][0]; dst[4]  = src[0][1];
+        dst[12] = src[1][3]; dst[20] = src[2][5]; dst[28] = src[3][7];
+        dst[36] = src[0][7]; dst[44] = src[1][1]; dst[52] = src[2][3];
+        dst[60] = src[3][5]; dst[5]  = src[0][5]; dst[13] = src[1][7];
+        dst[21] = src[2][1]; dst[29] = src[3][3]; dst[37] = src[0][3];
+        dst[45] = src[1][5]; dst[53] = src[2][7]; dst[61] = src[3][1];
+        dst[6]  = src[4][1]; dst[14] = src[5][3]; dst[22] = src[6][5];
+        dst[30] = src[7][7]; dst[38] = src[4][7]; dst[46] = src[5][1];
+        dst[54] = src[6][3]; dst[62] = src[7][5]; dst[7]  = src[4][5];
+        dst[15] = src[5][7]; dst[23] = src[6][1]; dst[31] = src[7][3];
+        dst[39] = src[4][3]; dst[47] = src[5][5]; dst[55] = src[6][7];
+        dst[63] = src[7][1];
+}
+
+void gift_64_sliced_encrypt(uint64_t c[8], const uint64_t m[8], const uint64_t key[2])
 {
         // generate round keys
         uint64_t round_keys[ROUNDS_GIFT_SLICED_64][8];
-        gift_64_sliced_generate_round_keys(round_keys, key,
-                                           ROUNDS_GIFT_SLICED_64);
+        gift_64_sliced_generate_round_keys(round_keys, key);
 
         memcpy(c, m, 8 * sizeof(m[0]));
 
@@ -214,27 +240,26 @@ void gift_64_sliced_encrypt(uint64_t c[8], uint64_t m[8], const uint64_t key[2])
         bits_pack(c);
 }
 
-void gift_64_sliced_decrypt(uint64_t m[8], uint64_t c[8], const uint64_t key[2])
+void gift_64_sliced_decrypt(uint64_t m[8], const uint64_t c[8], const uint64_t key[2])
 {
         // generate round keys
         uint64_t round_keys[ROUNDS_GIFT_SLICED_64][8];
-        gift_64_sliced_generate_round_keys(round_keys, key,
-                                           ROUNDS_GIFT_SLICED_64);
+        gift_64_sliced_generate_round_keys(round_keys, key);
 
-        memcpy(c, m, 8 * sizeof(m[0]));
+        memcpy(m, c, 8 * sizeof(m[0]));
 
         // pack message bits
-        bits_pack(c);
+        bits_pack(m);
 
         // round loop
-        for (int round = 0; round < ROUNDS_GIFT_SLICED_64; round++) {
-                for (size_t j = 0; j < ROUNDS_GIFT_SLICED_64; j++) {
-                        c[j] ^= round_keys[round][j];
+        for (int round = ROUNDS_GIFT_SLICED_64 - 1; round >= 0; round--) {
+                for (size_t j = 0; j < 8; j++) {
+                        m[j] ^= round_keys[round][j];
                 }
-                gift_64_sliced_permute(c);
-                gift_64_sliced_subcells(c);
+                gift_64_sliced_permute_inv(m);
+                gift_64_sliced_subcells_inv(m);
         }
 
-        // unpack ciphertext bits
-        bits_pack(c);
+        // unpack message bits
+        bits_pack(m);
 }
