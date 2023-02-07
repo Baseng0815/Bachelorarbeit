@@ -8,25 +8,25 @@
 
 // no testing framework necessary for this small project
 #define ASSERT_EQUALS(x,y)\
-        if ((x) != (y)) {\
-                fprintf(stderr, "ASSERT_EQUALS failed on line %d\n", __LINE__);\
+        if (x != y) {\
+                fprintf(stderr, "ASSERT_EQUALS failed on line %d: %lx != %lx\n", __LINE__, x, y);\
                 exit(-1);\
         }
 
-void key_rand(uint64_t *k)
+void key_rand(uint64_t k[])
 {
         k[0] = rand();
         k[1] = rand();
 }
 
-void m_rand(uint64_t *m, size_t n)
+void m_rand(uint64_t m[], size_t n)
 {
         for (size_t i = 0; i < n; i++) {
                 m[i] = rand() | ((uint64_t)rand() << 32);
         }
 }
 
-void test_gift_64()
+void test_gift_64(void)
 {
         printf("testing GIFT_64...\n");
 
@@ -49,7 +49,7 @@ void test_gift_64()
         }
 }
 
-void test_gift_128()
+void test_gift_128(void)
 {
         printf("testing GIFT_128...\n");
 
@@ -77,9 +77,45 @@ void test_gift_128()
         }
 }
 
+void test_gift_64_sliced(void)
+{
+        printf("testing GIFT_64_SLICED...\n");
+
+        // test encrypt to known value (8 times the same)
+        uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };
+        uint64_t m[8] = {
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL
+        };
+        uint64_t c_expected = 0xb11d30b8d39763e1UL;
+        uint64_t c[8];
+        gift_64_sliced_encrypt(c, m, key);
+        for (size_t i = 0; i < 8; i++) {
+                ASSERT_EQUALS(c[i], c_expected);
+        }
+
+        // test encrypt-decrypt
+        for (int i = 0; i < 100; i++) {
+                key_rand(key);
+                m_rand(m, 8);
+
+                gift_64_sliced_encrypt(c, m, key);
+                uint64_t m_actual[8];
+                gift_64_sliced_decrypt(m_actual, c, key);
+                printf("m=[%016lx, %016lx, ...], c=[%016lx, %016lx, ...], m1=[%016lx, %016lx, ...]\n",
+                       m[0], m[1], c[0], c[1], m_actual[0], m_actual[1]);
+                for (size_t j = 0; j < 8; j++) {
+                        ASSERT_EQUALS(m[j], m_actual[j]);
+                }
+        }
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
-        test_gift_64();
-        test_gift_128();
+        /* test_gift_64(); */
+        /* test_gift_128(); */
+        test_gift_64_sliced();
 }

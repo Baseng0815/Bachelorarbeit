@@ -58,9 +58,17 @@ void dec64(unsigned char* , unsigned char* , int , bool );
 int main(){
 srand((unsigned) time (NULL));
 
-unsigned char P[16], K[32];
-for (int i=0; i<16; i++) P[i] = rand() &0xf;
-for (int i=0; i<32; i++) K[i] = rand() &0xf;
+uint64_t key[2] = { 0x7d9a57f754a60169UL, 0x0e17c3f9eb2c96dcUL };
+uint64_t m[8] = {
+        0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+        0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+        0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+        0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL
+};
+
+unsigned char *K = (unsigned char*)key;
+cout << hex << (int)K[0] << (int)K[1] << (int)K[2] << endl;
+unsigned char *P = (unsigned char*)m;
 
 cout<<"Plaintext = ";
 for (int i=0; i<16; i++){
@@ -70,8 +78,8 @@ for (int i=0; i<16; i++){
 cout<<endl;
 
 cout<<"masterkey = ";
-    for (int i=0; i<32;i++){
-        cout<<hex<<(int)K[31-i]<<dec;
+    for (int i=0; i<16;i++){
+        cout<<hex<<(int)K[15-i]<<dec;
         if(i%2==1) cout<<" ";
     }
 cout<<endl<<endl;

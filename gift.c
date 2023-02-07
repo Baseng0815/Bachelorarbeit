@@ -65,13 +65,13 @@ static uint64_t gift_64_subcells(uint64_t cipher_state);
 static uint64_t gift_64_subcells_inv(uint64_t cipher_state);
 static uint64_t gift_64_permbits(uint64_t cipher_state);
 static uint64_t gift_64_permbits_inv(uint64_t cipher_state);
-static void     gift_64_generate_round_keys(uint64_t *round_keys, const uint64_t key[2]);
+static void     gift_64_generate_round_keys(uint64_t round_keys[], const uint64_t key[2]);
 
 static void gift_128_subcells(uint64_t cipher_state[2]);
 static void gift_128_subcells_inv(uint64_t cipher_state[2]);
 static void gift_128_permbits(uint64_t cipher_state[2]);
 static void gift_128_permbits_inv(uint64_t cipher_state[2]);
-static void gift_128_generate_round_keys(uint64_t *round_keys, const uint64_t key[2]);
+static void gift_128_generate_round_keys(uint64_t round_keys[], const uint64_t key[2]);
 
 uint64_t gift_64_subcells(uint64_t cipher_state)
 {
