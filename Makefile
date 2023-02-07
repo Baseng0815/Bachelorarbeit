@@ -2,8 +2,8 @@ CC	= clang
 TARGET 	= aarch64-linux-gnu
 SYSROOT	= $(HOME)/odroid_sysroot
 FLAGS 	= --target=$(TARGET) --sysroot=$(SYSROOT) -fuse-ld=lld -z notext -lz --verbose
-UFLAGS	= -O0 -Wall -gdwarf-4 -DDEBUG
-SESNAME	= benchmark
+UFLAGS	= -O0 -Wall -gdwarf-4
+SESNAME	= thesis
 HOST 	= engelnet.ddns.net
 
 SOURCE_FILES 	= gift.c gift_sliced.c gift_neon.c
@@ -26,12 +26,12 @@ run-benchmark: deploy
 	ssh bastian@$(HOST) -p 65534 "tmux send -t $(SESNAME).0 './$(BENCH_OUT)' ENTER"
 
 deploy: $(BENCH_OUT) $(TEST_OUT)
-	rsync -av -e 'ssh -p 65534' --progress $(TARGET_OUT) bastian@$(HOST):/home/bastian/$(TARGET_OUT)
-
-$(BENCH_OUT): $(SOURCE_FILES) $(BENCH_SOURCE)
-	$(CC) $(FLAGS) $(UFLAGS) -o $@ $^
+	rsync -av -e 'ssh -p 65534' --progress $(TEST_OUT) $(BENCH_OUT) bastian@$(HOST):/home/bastian/
 
 $(TEST_OUT): $(SOURCE_FILES) $(TEST_SOURCE)
+	$(CC) $(FLAGS) $(UFLAGS) -o $@ $^
+
+$(BENCH_OUT): $(SOURCE_FILES) $(BENCH_SOURCE)
 	$(CC) $(FLAGS) $(UFLAGS) -o $@ $^
 
 clean:

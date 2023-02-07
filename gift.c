@@ -228,9 +228,8 @@ void gift_128_generate_round_keys(uint64_t *round_keys, const uint64_t key[2])
 {
         uint64_t key_state[] = {key[0], key[1]};
         for (int round = 0; round < ROUNDS_GIFT_128; round++) {
-                uint32_t v = (key_state[0] >> 0 ) & 0xffffffff;
-                // TODO fix this nonsense
-                uint32_t u = (key_state[0] >> 64) & 0xffffffff;
+                uint32_t v = key_state[0] & 0xffffffff;
+                uint32_t u = key_state[1] & 0xffffffff;
 
                 // add round key (RK=U||V)
                 round_keys[2 * round + 0] = 0;
@@ -363,7 +362,7 @@ void gift_128_decrypt(uint64_t m[2], const uint64_t c[2], const uint64_t key[2])
         m[1] = c[1];
 
         // generate round keys
-        uint64_t round_keys[ROUNDS_GIFT_128];
+        uint64_t round_keys[2 * ROUNDS_GIFT_128];
         gift_128_generate_round_keys(round_keys, key);
 
         // round loop (in reverse)
