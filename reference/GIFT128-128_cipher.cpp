@@ -97,7 +97,7 @@ int main(){
     }
     cout<<endl<<endl;
 
-    enc128(P,K,40,0);
+    enc128(P,K,40,1);
 
     cout<<"Ciphertext = ";
     for (int i=0; i<32; i++){
@@ -106,7 +106,7 @@ int main(){
     }
     cout<<endl<<endl;
 
-    dec128(P,K,40,0);
+    dec128(P,K,40,1);
 
     cout<<"Plaintext = ";
     for (int i=0; i<32; i++){

@@ -54,9 +54,9 @@ void test_gift_128(void)
         printf("testing GIFT_128...\n");
 
         // test encrypt to known value
-        uint64_t key[2] = { 0x7d9a57f754a60169UL, 0x0e17c3f9eb2c96dcUL };
-        uint64_t m[2] = { 0x82be2bde4907f80eUL, 0x1e8353722cede03dUL };
-        uint64_t c_expected[2] = { 0x9bf471025027823cUL, 0x096a37a7d280df1cUL };
+        uint64_t key[2] = { 0xe4cb97525e4e9ec7UL, 0xac22df007be1e75fUL };
+        uint64_t m[2] = { 0xb56727d75611fa52UL, 0xf22d8525d7ce8033UL };
+        uint64_t c_expected[2] = {0x781e0899b0630487UL, 0xe81f38a697c07b06UL };
         uint64_t c[2];
         gift_128_encrypt(c, m, key);
         ASSERT_EQUALS(c[0], c_expected[0]);
@@ -115,7 +115,7 @@ void test_gift_64_sliced(void)
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
-        /* test_gift_64(); */
-        /* test_gift_128(); */
+        test_gift_64();
+        test_gift_128();
         test_gift_64_sliced();
 }
