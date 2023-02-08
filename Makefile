@@ -4,7 +4,7 @@ SYSROOT	= $(HOME)/odroid_sysroot
 FLAGS 	= --target=$(TARGET) --sysroot=$(SYSROOT) -fuse-ld=lld -z notext -lz --verbose
 UFLAGS	= -O0 -Wall -gdwarf-4 -DDEBUG
 SESNAME	= thesis
-HOST 	= engelnet.ddns.net
+HOST 	= odroid
 
 SOURCE_FILES 	= gift.c gift_sliced.c gift_neon.c
 BENCH_SOURCE	= benchmark.c
