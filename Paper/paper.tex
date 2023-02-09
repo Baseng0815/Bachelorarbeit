@@ -5,12 +5,12 @@
 \usepackage{amssymb}
 \usepackage{amsthm}
 \usepackage{ulem} % underline
+\usepackage{float} % H float specifier
 \usepackage{hyperref} % hyperlinks
 \usepackage{hyphenat}
 \usepackage{bookmark}
 \usepackage{systeme} % systems of equation
 \usepackage{parcolumns} % multiple column parallel typesetting
-\usepackage{float} % H float specifier
 \usepackage[english]{babel} % comment this for Angelsächsisch
 \usepackage{graphicx} % including graphics
 \usepackage{sourcecodepro} % best font
@@ -45,18 +45,19 @@
 \newcommand{\sref}[1]{\textsuperscript{\ref{#1}}}
 
 \title{
-\textbf{Efficient Implementation Strategies for Block Ciphers on ARMv8}\\
-{\footnotesize Bachelorarbeit}
+    \textbf{Efficient Implementation Strategies for Block Ciphers on ARMv8}\\
+    {\footnotesize Bachelorarbeit}
 }
 \author{Bastian Engel}
 \date{\today}
 
 \begin{document}
+
 \maketitle
 
 \chapter*{Abstract}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
+Lorem ipsum dolor \cite{gift:2017} sit amet, consectetur adipisicing elit, sed do eiusmod tempor
 incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
 nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
@@ -72,19 +73,87 @@ I hereby declare that ...
 \chapter{Introduction}
 \section{Block ciphers}
 
-Modern-day communication relies on ...
+Securing communication channels between different parties has been a long-term
+subject of study for cryptographers and engineers which is essential to our
+modern world to cope with ever-increasing amounts of devices producing and
+sharing data. The main way to facilitate high-throughput, confidential
+communications nowadays is through the use of symmetric cryptography in which
+two parties share a common secret, called a key, which allows them to encrypt,
+share and subsequently decrypt messages to achieve confidentiality against
+third parties. Ciphers can be divided into two categories; block ciphers, which
+always encrypt fixed-sized messages called blocks, and stream ciphers, which
+continuously provide encryption for an arbitrarily long, constant stream of
+data.
+
+A block cipher can be defined as a bijection between the input block (the
+message) and the output block (the ciphertext). For any block cipher with block
+size $n$, we denote the key-dependent encryption and decryption functions as
+$E_K,D_K:\mathbb{F}_2^n\rightarrow \mathbb{F}_2^n$. The simplest way to
+characterize this bijection is through a lookup table which yields the highest
+possible performance as each block can be encrypted by one simple lookup
+depending on the key and the message. This is not practical though due to most
+ciphers working with block and key sizes $n,|K|\geq 64$. For a block cipher
+with $n=64,|K|=128$, a space of $2^{64}2^{128}=2^{192}$ is necessary.
+Considering modern consumer hard disks being able to store data in the order of
+$2^{40}$, it is easy to see that a lookup table is wholly impractical. We
+therefore describe block ciphers algorithmically which opens up possibilities
+for different tradeoffs and security concerns.
+
 
 \subsection{GIFT}
 
-GIFT is a lightweight block cipher based on ...
+\texttt{GIFT}\cite{gift:2017}, first presented in the \textit{CHES 2017}
+cryptographic hardware and embedded systems conference, is a lightweight block
+cipher based on a previous design called \texttt|PRESENT|, developed in 2007. Its
+goal is to offer maximum security while being extremely light on resources.
+Modern battery-powered devices like RFID tags or low-latency operations like
+on-the-fly disc encryption present strong hardware and power constraints. GIFT
+aims to be a simple, low-energy cipher suited for these kinds of applications.
+
+\texttt{GIFT} comes in two variants; \verb|GIFT-64| working with 64-bit blocks
+and \texttt{GIFT-128} working with 128-bit blocks. In both cases, the key is 128
+bits long. The design is a very simple, round-based substitution-permutation
+network (SPN). One round consists in a sequential application of the confusion
+layer by means of 4-bit S-boxes and subsequent diffusion through bit
+permutation. After the bit permutation, a round key is added to the cipher
+state and the single round is complete. \texttt{GIFT-64} uses 28 rounds while
+\texttt{GIFT-128} uses 40 rounds.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/GIFT-64.pdf}
+    \caption{Two rounds of GIFT-64}
+    \label{fig:gift64}
+\end{figure}
 
 \subsubsection{Substitution layer}
 
+The input of \texttt{GIFT} is split into 4-bit nibbles which are then fed into
+16 S-boxes for \texttt{GIFT-64} and 32 S-boxes for \verb|GIFT-128|. The S-box
+$S:\mathbb{F}_2^4\rightarrow \mathbb{F}_2^4$ is defined as follows:
+
+\[
+    \begin{array}{l|cccccccccccccccc}
+        x & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & a & b & c & d & e & f \\
+        \hline
+        S(x) & 1 & a & 4 & c & 6 & f & 3 & 9 & 2 & d & b & 7 & 5 & 0 & 8 & e
+    \end{array}
+\]
+
 \subsubsection{Permutation layer}
+
+The permutation $P$ works on individual bits and maps bit $b_i$ to $b_{P(i)},
+\forall i\in\{0,1,\dots,n-1\}$. The different permutations for \verb|GIFT-64|
+and \verb|GIFT-128| can be expressed by:
+
+\begin{align*}
+    P_{64}(i)&=4\left\lfloor\frac{i}{16}\right\rfloor+16\left(\left(3\left\lfloor\frac{i\bmod 16}{4}\right\rfloor+(i\bmod 4)\right)\bmod 4\right)+(i\bmod 4) \\
+    P_{128}(i)&=4\left\lfloor\frac{i}{16}\right\rfloor+32\left(\left(3\left\lfloor\frac{i\bmod 16}{4}\right\rfloor+(i\bmod 4)\right)\bmod 4\right)+(i\bmod 4) \\
+\end{align*}
 
 \subsubsection{Round key addition}
 
-\subsubsection{Round key extraction}
+\subsubsection{Round key extraction and key schedule}
 
 \subsection{Camellia}
 
@@ -102,5 +171,8 @@ and essential in areas like medicine or automotive design, the need for ...
 \chapter*{Acknowledgements}
 
 I want to thank ...
+
+\bibliography{refs}
+\bibliographystyle{ieeetr}
 
 \end{document}
