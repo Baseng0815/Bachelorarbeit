@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define ROUNDS_GIFT_SLICED_64 28
-
 static const int round_constant[] = {
         // rounds 0-15
         0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3E, 0x3D, 0x3B, 0x37, 0x2F, 0x1E, 0x3C, 0x39, 0x33, 0x27, 0x0E,
@@ -14,16 +12,7 @@ static const int round_constant[] = {
         0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A, 0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
 };
 
-static void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n);
-static void bits_pack(uint64_t m[8]);
 static void print_unpacked(const uint64_t m[]);
-
-static void gift_64_sliced_generate_round_keys(uint64_t round_keys[ROUNDS_GIFT_SLICED_64][8],
-                                               const uint64_t key[2]);
-static void gift_64_sliced_subcells(uint64_t s[8]);
-static void gift_64_sliced_subcells_inv(uint64_t s[8]);
-static void gift_64_sliced_permute(uint64_t s[8]);
-static void gift_64_sliced_permute_inv(uint64_t s[8]);
 
 void swapmove(uint64_t *a, uint64_t *b, uint64_t m, int n)
 {
@@ -209,75 +198,77 @@ void gift_64_sliced_permute_inv(uint64_t s[8])
         dst[63] = src[7][1];
 }
 
-void gift_64_sliced_encrypt(uint64_t c[8], const uint64_t m[8], const uint64_t key[2])
+void gift_64_sliced_encrypt(uint8_t c[8][8], const uint8_t m[8][8], const uint64_t key[2])
 {
         // generate round keys
         uint64_t round_keys[ROUNDS_GIFT_SLICED_64][8];
         gift_64_sliced_generate_round_keys(round_keys, key);
 
-        memcpy(c, m, 8 * sizeof(m[0]));
-
-        // pack message bits
-        bits_pack(c);
+        // copy to state (eight 64-bit "registers") and pack message bits
+        uint64_t state[8];
+        memcpy(state, m, 8 * 8 * sizeof(m[0][0]));
+        bits_pack(state);
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_SLICED_64; round++) {
-                gift_64_sliced_subcells(c);
+                gift_64_sliced_subcells(state);
 #ifdef DEBUG
                 printf("GIFT_64_SLICED_ENCRYPT round %02d, subcells:      ", round);
-                print_unpacked(c);
+                print_unpacked(state);
 #endif
-                gift_64_sliced_permute(c);
+                gift_64_sliced_permute(state);
 #ifdef DEBUG
                 printf("GIFT_64_SLICED_ENCRYPT round %02d, permbits:      ", round);
-                print_unpacked(c);
+                print_unpacked(state);
 #endif
                 for (size_t j = 0; j < 8; j++) {
-                        c[j] ^= round_keys[round][j];
+                        state[j] ^= round_keys[round][j];
                 }
 #ifdef DEBUG
                 printf("GIFT_64_SLICED_ENCRYPT round %02d, add round key: ", round);
-                print_unpacked(c);
+                print_unpacked(state);
 #endif
         }
 
-        // unpack ciphertext bits
-        bits_pack(c);
+        // unpack ciphertext bits and copy to ciphertext buffer
+        bits_pack(state);
+        memcpy(c, state, 8 * sizeof(state[0]));
 }
 
-void gift_64_sliced_decrypt(uint64_t m[8], const uint64_t c[8], const uint64_t key[2])
+void gift_64_sliced_decrypt(uint8_t m[8][8], const uint8_t c[8][8], const uint64_t key[2])
 {
         // generate round keys
         uint64_t round_keys[ROUNDS_GIFT_SLICED_64][8];
         gift_64_sliced_generate_round_keys(round_keys, key);
 
-        memcpy(m, c, 8 * sizeof(m[0]));
-
-        // pack message bits
-        bits_pack(m);
+        // copy to state (eight 64-bit "registers") and pack message bits
+        uint64_t state[8];
+        memcpy(state, c, 8 * 8 * sizeof(m[0][0]));
+        bits_pack(state);
 
         // round loop
         for (int round = ROUNDS_GIFT_SLICED_64 - 1; round >= 0; round--) {
                 for (size_t j = 0; j < 8; j++) {
-                        m[j] ^= round_keys[round][j];
+                        state[j] ^= round_keys[round][j];
                 }
 #ifdef DEBUG
                 printf("GIFT_64_SLICED_DECRYPT round %02d, add round key: ", round);
-                print_unpacked(c);
+                print_unpacked(state);
 #endif
-                gift_64_sliced_permute_inv(m);
+                gift_64_sliced_permute_inv(state);
 
 #ifdef DEBUG
                 printf("GIFT_64_SLICED_DECRYPT round %02d, permbits inv:  ", round);
-                print_unpacked(c);
+                print_unpacked(state);
 #endif
-                gift_64_sliced_subcells_inv(m);
+                gift_64_sliced_subcells_inv(state);
 #ifdef DEBUG
                 printf("GIFT_64_SLICED_DECRYPT round %02d, subcells inv:  ", round);
-                print_unpacked(c);
+                print_unpacked(state);
 #endif
         }
 
-        // unpack message bits
-        bits_pack(m);
+        // unpack message bits and copy to message buffer
+        bits_pack(state);
+        memcpy(m, state, 8 * sizeof(state[0]));
 }

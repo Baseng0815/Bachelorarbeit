@@ -2,7 +2,7 @@ CC	= clang
 TARGET 	= aarch64-linux-gnu
 SYSROOT	= $(HOME)/odroid_sysroot
 FLAGS 	= --target=$(TARGET) --sysroot=$(SYSROOT) -fuse-ld=lld -z notext -lz --verbose
-UFLAGS	= -O0 -Wall -gdwarf-4 -DDEBUG
+UFLAGS	= -O0 -Wall -gdwarf-4
 SESNAME	= thesis
 HOST 	= odroid
 

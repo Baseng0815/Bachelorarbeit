@@ -6,37 +6,85 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define MEASURE(code, t0, t1)\
+        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0));\
+        code;\
+        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1));\
+        printf(#code ": took %ld cycles\n", t1 - t0);
+
+void key_rand(uint64_t k[])
+{
+        k[0] = rand();
+        k[1] = rand();
+}
+
+void m_rand(uint8_t m[], size_t n)
+{
+        for (size_t i = 0; i < n; i++) {
+                m[i] = rand() & 0xf;
+        }
+}
+
+void benchmark_gift_64(void)
+{
+        uint64_t key[2];
+        key_rand(key);
+
+        uint8_t m[8];
+        m_rand(m, 8);
+
+        uint8_t c[8];
+        uint8_t round_keys[ROUNDS_GIFT_64][16];
+
+        uint64_t t0, t1;
+        // TODO take into account repeated execution due to cache effects
+        MEASURE(gift_64_generate_round_keys(round_keys, key), t0, t1);
+        MEASURE(gift_64_subcells(m), t0, t1);
+        MEASURE(gift_64_permute(m), t0, t1);
+        MEASURE(gift_64_encrypt(c, m, key), t0, t1);
+}
+
+void benchmark_gift_128(void)
+{
+        uint64_t key[2];
+        key_rand(key);
+
+        uint8_t m[16];
+        m_rand(m, 8);
+
+        uint8_t c[16];
+        uint8_t round_keys[ROUNDS_GIFT_128][32];
+
+        uint64_t t0, t1;
+        // TODO take into account repeated execution due to cache effects
+        MEASURE(gift_128_generate_round_keys(round_keys, key), t0, t1);
+        MEASURE(gift_128_subcells(m), t0, t1);
+        MEASURE(gift_128_permute(m), t0, t1);
+        MEASURE(gift_128_encrypt(c, m, key), t0, t1);
+}
+
+void benchmark_gift_64_sliced(void)
+{
+        uint64_t key[2];
+        key_rand(key);
+
+        uint8_t m[16];
+        m_rand(m, 8);
+
+        uint8_t c[16];
+        uint8_t round_keys[ROUNDS_GIFT_128][32];
+
+        uint64_t t0, t1;
+        // TODO take into account repeated execution due to cache effects
+        MEASURE(gift_64_sliced_generate_round_keys(round_keys, key), t0, t1);
+        MEASURE(gift_64_sliced_subcells(m), t0, t1);
+        MEASURE(gift_64_sliced_permute(m), t0, t1);
+        MEASURE(gift_64_sliced_encrypt(c, m, key), t0, t1);
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
-        uint64_t key[2] = { 10000UL, 24000UL };
-        uint64_t m[8] = {
-                rand(), rand(), rand(), rand(),
-                rand(), rand(), rand(), rand()
-        };
-        uint64_t c[8];
-
-        // benchmark gift_64_encrypt
-        uint64_t t0, t1;
-        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0)); */
-        /* gift_64_encrypt(m[0], key); */
-        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1)); */
-        /* printf("gift_64_encrypt: took %ld cycles\n", t1 - t0); */
-
-        // benchmark gift_128_encrypt
-        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0));
-        gift_128_encrypt(c, m, key);
-        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1));
-        printf("gift_128_encrypt: took %ld cycles\n", t1 - t0);
-
-        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0));
-        gift_128_decrypt(m, c, key);
-        asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1));
-        printf("gift_128_decrypt: took %ld cycles\n", t1 - t0);
-
-        // benchmark gift_64_sliced_encrypt
-        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0)); */
-        /* gift_64_sliced_encrypt(c, m, key); */
-        /* asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1)); */
-        /* printf("gift_64_sliced_encrypt: took %ld cycles\n", t1 - t0); */
+        benchmark_gift_64();
+        benchmark_gift_128();
 }

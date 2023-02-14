@@ -89,36 +89,40 @@ void test_gift_128(void)
 
 void test_gift_64_sliced(void)
 {
-        printf("testing GIFT_64_SLICED...\n");
-
         // test encrypt to known value (8 times the same)
+        printf("testing GIFT_64_SLICED encryption to known value...\n");
         uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };
-        uint64_t m[8] = {
-                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
-                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
-                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
-                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL
+        uint8_t m[8][8] = {
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
+                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d }
         };
-        uint64_t c_expected = 0xb11d30b8d39763e1UL;
-        uint64_t c[8];
+        uint8_t c_expected[8] = {
+                0xe1, 0x63, 0x97, 0xd3, 0xb8, 0x30, 0x1d, 0xb1
+        };
+        uint8_t c[8][8];
         gift_64_sliced_encrypt(c, m, key);
         for (size_t i = 0; i < 8; i++) {
-                ASSERT_EQUALS(c[i], c_expected);
+                ASSERT_TRUE(memcmp(&c[i][0], c_expected, 8) == 0);
         }
 
         // test encrypt-decrypt
+        printf("testing GIFT_64_SLICED encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
                 key_rand(key);
-                m_rand(m, 8);
+                for (size_t j = 0; j < 8; j++) {
+                        m_rand(&m[j][0], 8);
+                }
 
                 gift_64_sliced_encrypt(c, m, key);
-                uint64_t m_actual[8];
+                uint8_t m_actual[8][8];
                 gift_64_sliced_decrypt(m_actual, c, key);
-                printf("m=[%016lx, %016lx, ...], c=[%016lx, %016lx, ...], m1=[%016lx, %016lx, ...]\n",
-                       m[0], m[1], c[0], c[1], m_actual[0], m_actual[1]);
-                for (size_t j = 0; j < 8; j++) {
-                        ASSERT_EQUALS(m[j], m_actual[j]);
-                }
+                ASSERT_TRUE(memcmp(m_actual, m, 8 * 8) == 0);
         }
 }
 
