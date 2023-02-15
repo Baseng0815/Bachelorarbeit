@@ -10,12 +10,13 @@
 \usepackage{hyphenat}
 \usepackage{bookmark}
 \usepackage{systeme} % systems of equation
+\usepackage[utf8]{inputenc} % necessary for proper unicode support
 \usepackage{parcolumns} % multiple column parallel typesetting
 \usepackage[english]{babel} % comment this for Angelsächsisch
 \usepackage{graphicx} % including graphics
 \usepackage{sourcecodepro} % best font
 \usepackage{listings} % source code listings
-\usepackage[utf8]{inputenc} % necessary for proper unicode support
+\usepackage{biblatex} % better citation
 % \usepackage[a4paper, top=1cm, left=2cm, right=2cm, includeheadfoot]{geometry} % customize page geometry
 
 % umlauts in lstlistings env
@@ -33,7 +34,7 @@
     breaklines=true
 }
 
-\lstset{
+\lstset {
     numbers=left,
     stepnumber=1,
     firstnumber=1,
@@ -43,6 +44,9 @@
 \providecommand{\lxor}{\veebar}
 \renewcommand{\proofname}{Beweis.}
 \newcommand{\sref}[1]{\textsuperscript{\ref{#1}}}
+\newcommand{\F}[1]{\mathbb{F}_2^{#1}}
+
+\addbibresource{refs.bib}
 
 \title{
     \textbf{Efficient Implementation Strategies for Block Ciphers on ARMv8}\\
@@ -88,12 +92,12 @@ data.
 A block cipher can be defined as a bijection between the input block (the
 message) and the output block (the ciphertext). For any block cipher with block
 size $n$, we denote the key-dependent encryption and decryption functions as
-$E_K,D_K:\mathbb{F}_2^n\rightarrow \mathbb{F}_2^n$. The simplest way to
+$E_K,D_K:\F{n}\rightarrow \F{n}$. The simplest way to
 characterize this bijection is through a lookup table which yields the highest
 possible performance as each block can be encrypted by one simple lookup
 depending on the key and the message. This is not practical though due to most
 ciphers working with block and key sizes $n,|K|\geq 64$. For a block cipher
-with $n=64,|K|=128$, a space of $2^{64}2^{128}=2^{192}$ is necessary.
+with $n=64,|K|=128$, a space of $2^{64}2^{128}64=2^{198}$ is necessary.
 Considering modern consumer hard disks being able to store data in the order of
 $2^{40}$, it is easy to see that a lookup table is wholly impractical. We
 therefore describe block ciphers algorithmically which opens up possibilities
@@ -129,8 +133,8 @@ state and the single round is complete. \texttt{GIFT-64} uses 28 rounds while
 \subsubsection{Substitution layer}
 
 The input of \texttt{GIFT} is split into 4-bit nibbles which are then fed into
-16 S-boxes for \texttt{GIFT-64} and 32 S-boxes for \verb|GIFT-128|. The S-box
-$S:\mathbb{F}_2^4\rightarrow \mathbb{F}_2^4$ is defined as follows:
+16 S-boxes for \texttt{GIFT-64} and 32 S-boxes for \texttt{GIFT-128}. The S-box
+$S:\F{4}\rightarrow \F{4}$ is defined as follows:
 
 \[
     \begin{array}{l|cccccccccccccccc}
@@ -143,8 +147,8 @@ $S:\mathbb{F}_2^4\rightarrow \mathbb{F}_2^4$ is defined as follows:
 \subsubsection{Permutation layer}
 
 The permutation $P$ works on individual bits and maps bit $b_i$ to $b_{P(i)},
-\forall i\in\{0,1,\dots,n-1\}$. The different permutations for \verb|GIFT-64|
-and \verb|GIFT-128| can be expressed by:
+\forall i\in\{0,1,\dots,n-1\}$. The different permutations for \texttt{GIFT-64}
+and \texttt{GIFT-128} can be expressed by:
 
 \begin{align*}
     P_{64}(i)&=4\left\lfloor\frac{i}{16}\right\rfloor+16\left(\left(3\left\lfloor\frac{i\bmod 16}{4}\right\rfloor+(i\bmod 4)\right)\bmod 4\right)+(i\bmod 4) \\
@@ -153,7 +157,45 @@ and \verb|GIFT-128| can be expressed by:
 
 \subsubsection{Round key addition}
 
+The last step of each round consists in XORing a round key $R_i$ to the cipher
+state. The new cipher state $s_{i+1}$ after each full round is therefore given
+by
+
+\[
+    s_{i+1}=P(S(s_i))\oplus R_i
+\]
+
 \subsubsection{Round key extraction and key schedule}
+
+Round key extraction differs for \texttt{GIFT-64} and \texttt{GIFT-128}. Let
+$K=k7||k6||\dots||k0$ denote the $128$-bit key state.
+
+\paragraph{GIFT-64}. We extract two 16-bit words $U||V=k_1||k_0$ from the key
+state. $u_i$ and $v_i$ are XORed to $r_{4i+1}$ and $r_{4i}$ of the round key
+$R$ respectively.
+
+\paragraph{GIFT-128}. We extract two 32-bit words $U||V=k_5||k4||k1||k_0$ from
+the key state. $u_i$ and $v_i$ are XORed to $r_{4i+2}$ and $b_{4i+1}$ of the
+round key $R$ respectively.
+
+In both cases, we additionally XOR a round constant $C=c_5c_4c_3c_2c_1c_0$ to
+bit positions $n-1,23,19,15,11,7,3$. The round constants are generated using a
+6-bit affine linear-feedback shift register and have the following values:\\
+
+\begin{tabular}{r|l}
+    \textbf{Rounds} & \textbf{Constants} \\
+    \hline
+    \textbf{1 - 16} &  \small\texttt{01,03,07,0F,1F,3E,3D,3B,37,2F,1E,3C,39,33,27,0E} \\
+    \textbf{17 - 32} & \small\texttt{1D,3A,35,2B,16,2C,18,30,21,02,05,0B,17,2E,1C,38} \\
+    \textbf{33 - 48} & \small\texttt{31,23,06,0D,1B,36,2D,1A,34,29,12,24,08,11,22,04}
+\end{tabular}\\
+
+The key state is then updated by setting $k_1\leftarrow k_1\ggg 2$,
+$k_0\leftarrow k_0\ggg 12$ and rotating the new state $32$ bits to the right:
+
+\[
+    k_7||k_6||\dots||k_1||k_0\leftarrow k_1\ggg 2||k_0\ggg 12||k_7||k_6||\dots||k_3||k_2
+\]
 
 \subsection{Camellia}
 
@@ -162,17 +204,94 @@ and \verb|GIFT-128| can be expressed by:
 With small devices, embedded processors and ASICs becoming ever more ubiquitous
 and essential in areas like medicine or automotive design, the need for ...
 
-\chapter{A simple implementation}
+\chapter{Implementation strategies}
 
-\chapter{Optimizations through bitslicing}
+Due to the structural differences of SPN- and Feistel network-based ciphers, we
+shall analyze these two separately.
 
-\chapter{Leveraging NEON advanced SIMD instructions}
+\section{Strategies for SPN}
+
+Three implementation strategies for substitution-permutation networks are
+introduced by \cite{implx86:2014}:
+
+\begin{itemize}
+    \item Table-based implementations
+    \item \texttt{vperm} implementations
+    \item Bitslice implementations
+\end{itemize}
+
+\subsection{Table-based}
+
+Table-driven programming is a simple way to increase performance of operations
+by tabulating the results, therefore requiring only a single memory access to
+acquire the result. This approach is obviously limited to manageable table
+sizes, so while tabulating a function like the AES S-box
+$S_{AES}:\F{8}\rightarrow \F{8}$ requires only $2^{11}$ space,
+tabulating the \texttt{GIFT} permutation layer
+$P_{GIFT}:\F{64}\rightarrow \F{64}$ would require
+$2^{70}$ space, which is totally unfeasible.
+
+A common approach is to tabulate the output of each S-box, including the
+diffusion layer, and then XORing the results together. Let $n$ denote the
+internal cipher state size and $s$ the size of a single S-box in bits. For each
+S-box $S_i,i\in\{0,\dots,\frac{n}{s}\}$, we can construct a mapping
+$T_i:\F{s}\rightarrow \F{n}$ representing substitution with subsequent
+permutation of that single S-box. The cipher state before round key addition is
+then given by $\bigoplus_{i=0}^{\frac{n}{s}-1}{T_i(m_i)}$ for each $s$-bit
+message chunk $m_i$. This approach requires space of
+$\frac{n}{s}|\F{s}|n=\frac{n^2 2^s}{s}$ bits, which, for \texttt{GIFT-64},
+results in a manageable size of $\frac{64^2 2^4}{4}=2^{14}$ bits which equals
+$16$ KiB.
+
+\subsubsection{Constructing the tables}
+
+For \texttt{GIFT-64}, table construction is relatively straightforward and can
+be done as follows:
+
+\begin{lstlisting}[frame=single, caption={Table construction algorithm}, escapechar=|]
+    tables <- [][]
+    for sbox_index from 0 to 15 do
+        for sbox_input from 0 to 15 do|\label{lst:tablesbox}|
+            output <- sbox(sbox_input)
+            output <- permute(output << (4 * sbox_index))
+            tables[sbox_index][sbox_input] <- output
+\end{lstlisting}
+
+Implementing this algorithm gives us the following table representing the first
+and second S-box.
+
+\[
+    \begin{array}{l|l|l|c}\label{table:gift64subperm}
+        x & T_0(x) & T_1(x) & \dots \\
+        \hline
+        0x0 & 0x1               & 0x1000000000000   & \dots \\
+        0x1 & 0x8000000020000   & 0x800000002       & \dots \\
+        0x2 & 0x400000000       & 0x40000           & \dots \\
+        0x3 & 0x8000400000000   & 0x800040000       & \dots \\
+        0x4 & 0x400020000       & 0x40002           & \dots \\
+        0x5 & 0x8000400020001   & 0x1000800040002   & \dots \\
+        0x6 & 0x20001           & 0x1000000000002   & \dots \\
+        0x7 & 0x8000000000001   & 0x1000800000000   & \dots \\
+        0x8 & 0x20000           & 0x2               & \dots \\
+        0x9 & 0x8000400000001   & 0x1000800040000   & \dots \\
+        0xa & 0x8000000020001   & 0x1000800000002   & \dots \\
+        0xb & 0x400020001       & 0x1000000040002   & \dots \\
+        0xc & 0x400000001       & 0x1000000040000   & \dots \\
+        0xd & 0x0               & 0x0               & \dots \\
+        0xe & 0x8000000000000   & 0x800000000       & \dots \\
+        0xf & 0x8000400020000   & 0x800040002       & \dots
+    \end{array}
+\]
+
+The tables for \texttt{GIFT-128} can be generated in a similar way by looping
+through all 32 S-boxes instead of 16 on line \ref{lst:tablesbox}.
+
+\chapter{Benchmarks}
 
 \chapter*{Acknowledgements}
 
 I want to thank ...
 
-\bibliography{refs}
-\bibliographystyle{ieeetr}
+\printbibliography
 
 \end{document}
