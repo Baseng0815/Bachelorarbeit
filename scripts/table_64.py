@@ -28,6 +28,8 @@ for sbox_index in range(16):
         table.append(output)
     tables.append(table)
 
-for x in tables[1]:
-    print(hex(x), end=' ')
-print('')
+for table in tables:
+    for x in table:
+        for i in range(8):
+            print("{0:#0{1}x},".format((x >> (15 - i)) & 0xff, 4), end=' ')
+    print('')

@@ -1,6 +1,6 @@
-#include "gift.h"
-#include "gift_sliced.h"
-#include "gift_neon.h"
+#include "naive/gift.h"
+#include "naive/gift_sliced.h"
+#include "naive/gift_neon.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,22 +38,21 @@ void test_gift_64(void)
         // test encrypt to known value
         printf("testing GIFT_64 encrytion to known value...\n");
         uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };
-        uint8_t m[8] = { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d };
-        uint8_t c_expected[8] = { 0xe1, 0x63, 0x97, 0xd3, 0xb8, 0x30, 0x1d, 0xb1 };
-        uint8_t c[8];
-        gift_64_encrypt(c, m, key);
-        ASSERT_TRUE(memcmp(c_expected, c, 8) == 0);
+        uint64_t m = 0x4dcfd3bdd61810f0UL;
+        uint64_t c_expected = 0xb11d30b8d39763e1UL;
+        uint64_t c;
+        c = gift_64_encrypt(m, key);
+        ASSERT_EQUALS(c, c_expected);
 
         // test encrypt-decrypt
         printf("testing GIFT_64 encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
                 key_rand(key);
-                m_rand(m, 8);
+                m_rand((uint8_t*)&m, 8);
 
-                gift_64_encrypt(c, m, key);
-                uint8_t m_actual[8];
-                gift_64_decrypt(m_actual, c, key);
-                ASSERT_TRUE(memcmp(m, m_actual, 8) == 0);
+                c = gift_64_encrypt(m, key);
+                uint64_t m_actual = gift_64_decrypt(c, key);
+                ASSERT_EQUALS(m, m_actual);
         }
 }
 
