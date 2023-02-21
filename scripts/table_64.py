@@ -30,6 +30,5 @@ for sbox_index in range(16):
 
 for table in tables:
     for x in table:
-        for i in range(8):
-            print("{0:#0{1}x},".format((x >> (15 - i)) & 0xff, 4), end=' ')
+        print("{0:#0{1}x}".format(x, 18), end=' ')
     print('')

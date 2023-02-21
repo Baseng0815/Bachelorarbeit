@@ -7,10 +7,10 @@
 #define ROUNDS_GIFT_128 40
 
 // expose for benchmarking
-uint64_t gift_64_subcells(uint64_t cipher_state);
-uint64_t gift_64_subcells_inv(uint64_t cipher_state);
-uint64_t gift_64_permute(uint64_t cipher_state);
-uint64_t gift_64_permute_inv(uint64_t cipher_state);
+uint64_t gift_64_subcells(const uint64_t cipher_state);
+uint64_t gift_64_subcells_inv(const uint64_t cipher_state);
+uint64_t gift_64_permute(const uint64_t cipher_state);
+uint64_t gift_64_permute_inv(const uint64_t cipher_state);
 void gift_64_generate_round_keys(uint64_t round_keys[ROUNDS_GIFT_64],
                                  const uint64_t key[2]);
 

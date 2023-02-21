@@ -61,9 +61,9 @@ static const int round_constant[] = {
         0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A, 0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
 };
 
-static void print_bytes(uint8_t b[], size_t n);
+static void print_bytes(const uint8_t b[], const size_t n);
 
-void print_bytes(uint8_t b[], size_t n)
+void print_bytes(const uint8_t b[], const size_t n)
 {
         for (size_t i = 0; i < n; i++) {
                 printf("%01x", b[i] & 0xf);
@@ -74,7 +74,7 @@ void print_bytes(uint8_t b[], size_t n)
         printf("\n");
 }
 
-uint64_t gift_64_subcells(uint64_t cipher_state)
+uint64_t gift_64_subcells(const uint64_t cipher_state)
 {
         uint64_t new_cipher_state = 0UL;
         for (size_t i = 0; i < 16; i++) {
@@ -86,7 +86,7 @@ uint64_t gift_64_subcells(uint64_t cipher_state)
         return new_cipher_state;
 }
 
-uint64_t gift_64_subcells_inv(uint64_t cipher_state)
+uint64_t gift_64_subcells_inv(const uint64_t cipher_state)
 {
         uint64_t new_cipher_state = 0UL;
         for (size_t i = 0; i < 16; i++) {
@@ -98,7 +98,7 @@ uint64_t gift_64_subcells_inv(uint64_t cipher_state)
         return new_cipher_state;
 }
 
-uint64_t gift_64_permute(uint64_t cipher_state)
+uint64_t gift_64_permute(const uint64_t cipher_state)
 {
         uint64_t new_cipher_state = 0UL;
 
@@ -110,7 +110,7 @@ uint64_t gift_64_permute(uint64_t cipher_state)
         return new_cipher_state;
 }
 
-uint64_t gift_64_permute_inv(uint64_t cipher_state)
+uint64_t gift_64_permute_inv(const uint64_t cipher_state)
 {
         uint64_t new_cipher_state = 0UL;
 
@@ -290,22 +290,11 @@ void gift_128_encrypt(uint8_t c_[16], const uint8_t m[16], const uint64_t key[2]
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_128; round++) {
                 gift_128_subcells(c);
-#ifdef DEBUG
-                printf("GIFT_128_ENCRYPT round %2d, subcells:      ", round);
-                print_bytes(c, 32);
-#endif
                 gift_128_permute(c);
-#ifdef DEBUG
-                printf("GIFT_128_ENCRYPT round %2d, permute:       ", round);
-                print_bytes(c, 32);
-#endif
+
                 for (size_t i = 0; i < 32; i++) {
                         c[i] ^= round_keys[round][i];
                 }
-#ifdef DEBUG
-                printf("GIFT_128_ENCRYPT round %2d, add round key: ", round);
-                print_bytes(c, 32);
-#endif
         }
 
         for (size_t i = 0; i < 16; i++) {
@@ -329,20 +318,9 @@ void gift_128_decrypt(uint8_t m_[16], const uint8_t c[16], const uint64_t key[2]
                 for (size_t i = 0; i < 32; i++) {
                         m[i] ^= round_keys[round][i];
                 }
-#ifdef DEBUG
-                printf("GIFT_128_DECRYPT round %2d, add round key: ", round);
-                print_bytes(m, 32);
-#endif
+
                 gift_128_permute_inv(m);
-#ifdef DEBUG
-                printf("GIFT_128_DECRYPT round %2d, permute inv:   ", round);
-                print_bytes(m, 32);
-#endif
                 gift_128_subcells_inv(m);
-#ifdef DEBUG
-                printf("GIFT_128_DECRYPT round %2d, subcells inv:  ", round);
-                print_bytes(m, 32);
-#endif
         }
 
         for (size_t i = 0; i < 16; i++) {

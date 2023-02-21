@@ -1,6 +1,7 @@
 #include "naive/gift.h"
 #include "naive/gift_sliced.h"
 #include "naive/gift_neon.h"
+#include "table/gift_table.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,10 +126,35 @@ void test_gift_64_sliced(void)
         }
 }
 
+void test_gift_64_table(void)
+{
+        // test encrypt to known value
+        printf("testing GIFT_64_TABLE encrytion to known value...\n");
+        uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };
+        uint64_t m = 0x4dcfd3bdd61810f0UL;
+        uint64_t c_expected = 0xb11d30b8d39763e1UL;
+        uint64_t c;
+        c = gift_64_table_encrypt(m, key);
+        ASSERT_EQUALS(c, c_expected);
+
+        // test encrypt-decrypt
+        printf("testing GIFT_64_TABLE encrypt-decrypt...\n");
+        for (int i = 0; i < 100; i++) {
+                key_rand(key);
+                m_rand((uint8_t*)&m, 8);
+
+                c = gift_64_encrypt(m, key);
+                // only encryption for table approach
+                uint64_t m_actual = gift_64_decrypt(c, key);
+                ASSERT_EQUALS(m, m_actual);
+        }
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
         test_gift_64();
         test_gift_128();
         test_gift_64_sliced();
+        test_gift_64_table();
 }
