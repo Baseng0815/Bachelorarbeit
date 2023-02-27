@@ -1,5 +1,7 @@
 Literatur
+Antrag.pdf
 *.out
+test
 benchmark
 
 # copied from https://github.com/github/gitignore/blob/main/TeX.gitignore
