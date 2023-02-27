@@ -7,7 +7,7 @@
 \usepackage{ulem} % underline
 \usepackage{float} % H float specifier
 \usepackage{hyperref} % hyperlinks
-\usepackage{hyphenat}
+% \usepackage{hyphenat}
 \usepackage{bookmark}
 \usepackage{systeme} % systems of equation
 \usepackage[utf8]{inputenc} % necessary for proper unicode support
@@ -286,7 +286,82 @@ and second S-box.
 The tables for \texttt{GIFT-128} can be generated in a similar way by looping
 through all 32 S-boxes instead of 16 on line \ref{lst:tablesbox}.
 
-\chapter{Benchmarks}
+\subsection{Using \texttt{vperm}}
+
+Nowadays, most instructions set architectures support single-instruction,
+multiple-data processing. The idea of such an SIMD system is to work on
+multiple data stored in vectors at once to speed up calculations. For A64, two
+types of vector processing are available:
+
+\begin{enumerate}
+    \item Advanced SIMD, known as NEON
+    \item Scalable Vector Extension (SVE)
+\end{enumerate}
+
+We will take a look at NEON as this is the type of vector processing supported
+by the Cortex A-73 processor.
+
+\subsubsection{ARM Neon}
+
+The register file of the NEON unit is made up of 32 quad-word (128-bit)
+registers \texttt{V[0-31]}, each extending the standard 64-bit floating-point
+registers \mbox{\texttt{D[0-31]}}. These registers are divided into equally
+sized lanes on which the vector instructions operate. Valid ways to interpret
+for example the register \texttt{V0} are:
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/V_register.pdf}
+    \caption{Divisions of the V register}
+    \label{fig:gift64}
+\end{figure}
+
+NEON instructions interpret their operands' layouts (i.e. lane count and width)
+through the use of suffixes such as \texttt{.4S} or \texttt{.8H}. For instance,
+adding eight 16-bit halfwords from register \texttt{V1} and \texttt{V2}
+together and storing the result in \texttt{V0} can be done as follows:
+
+\begin{center}
+    \texttt{ADD V0.8H, V1.8H, V2.8H}
+\end{center}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/vector_add.pdf}
+    \caption{Addition of two vector registers}
+    \label{fig:gift64}
+\end{figure}
+
+The plenitude of different processing instructions allow flexible ways to
+further speed up algorithms having reached their optimizational limit on
+non-SIMD platforms. \texttt{vperm}, a general term standing for \textit{vector
+permute}, is a common instruction on SIMD machines. Called \texttt{TBL} on
+NEON, it is used for parallel table lookups and arbitrary permutations. It takes
+two inputs and performs a lanewise lookup:
+
+\begin{enumerate}
+    \item A register with lookup values
+    \item Two or more registers containing data
+\end{enumerate}
+
+\subsubsection{S-box lookup}
+
+This instruction can be used to implement S-box lookup of all 16 S-boxes in a
+single instruction. We do this by packing our 64-bit cipher state
+$s=s_{15}||s_{14}||\dots||s_0$ into a vector register $V_0$. Because we can
+only operate on whole bytes, we put each 4-bit S-box into an 8-bit lane. We
+then put the S-box itself into register $V_1$ which will be used as the data
+register for the table lookup.
+
+\subsection{Bitslicing}
+
+\chapter{Implementation}
+
+\chapter{Evaluation}
+
+\section{Limitations}
+
+\section{Benchmarks}
 
 \chapter*{Acknowledgements}
 
