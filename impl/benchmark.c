@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <stdint.h>
+#include <arm_neon.h>
+
 #define MEASURE(code, t0, t1)\
         asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t0));\
         code;\

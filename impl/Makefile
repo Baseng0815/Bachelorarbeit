@@ -2,11 +2,11 @@ CC	= clang
 TARGET 	= aarch64-linux-gnu
 SYSROOT	= $(HOME)/odroid_sysroot
 FLAGS 	= --target=$(TARGET) --sysroot=$(SYSROOT) -fuse-ld=lld -z notext -lz --verbose
-UFLAGS	= -O3 -Wall -gdwarf-4
+UFLAGS	= -O0 -Wall -gdwarf-4
 SESNAME	= thesis
 HOST 	= odroid
 
-SOURCE_FILES 	= naive/gift.c naive/gift_sliced.c naive/gift_neon.c table/gift_table.c
+SOURCE_FILES 	= naive/gift.c naive/gift_sliced.c naive/gift_neon.c table/gift_table.c vector/gift_vec_sbox.c
 BENCH_SOURCE	= benchmark.c
 BENCH_OUT 	= benchmark
 TEST_SOURCE	= test.c
