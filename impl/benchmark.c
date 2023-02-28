@@ -2,7 +2,8 @@
 
 #include "naive/gift.h"
 #include "naive/gift_sliced.h"
-#include "naive/gift_neon.h"
+#include "table/gift_table.h"
+#include "vector/gift_vec_sbox.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,11 +95,40 @@ void benchmark_gift_64_sliced(void)
         MEASURE(gift_64_sliced_encrypt(c, m, key), t0, t1);
 }
 
+void benchmark_gift_64_vec_sbox(void)
+{
+        uint64_t key[2];
+        key_rand(key);
+
+        uint8x16_t m;
+        m = vsetq_lane_u32(rand(), m, 0);
+        m = vsetq_lane_u32(rand(), m, 1);
+        m = vsetq_lane_u32(rand(), m, 2);
+        m = vsetq_lane_u32(rand(), m, 3);
+
+        uint8x16_t round_keys[ROUNDS_GIFT_64];
+
+        uint64_t t0, t1;
+        // TODO take into account repeated execution due to cache effects
+        MEASURE(gift_64_vec_sbox_generate_round_keys(round_keys, key), t0, t1);
+        for (int i = 0; i < 5; i++) {
+                MEASURE(gift_64_vec_sbox_subcells(m), t0, t1);
+        }
+        for (int i = 0; i < 5; i++) {
+                MEASURE(gift_64_vec_sbox_permute(m), t0, t1);
+        }
+
+        uint64_t m_;
+        m_rand((uint8_t*)&m_, sizeof(m_));
+        MEASURE(gift_64_vec_sbox_encrypt(m_, key), t0, t1);
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
         benchmark_gift_64();
         benchmark_gift_128();
+        benchmark_gift_64_vec_sbox();
 }
 
 #pragma clang optimize on

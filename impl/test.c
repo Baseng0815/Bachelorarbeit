@@ -1,6 +1,5 @@
 #include "naive/gift.h"
 #include "naive/gift_sliced.h"
-#include "naive/gift_neon.h"
 #include "table/gift_table.h"
 #include "vector/gift_vec_sbox.h"
 

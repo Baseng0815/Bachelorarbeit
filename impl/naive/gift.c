@@ -250,7 +250,6 @@ uint64_t gift_64_encrypt(const uint64_t m, const uint64_t key[2])
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
-                printf("0x%lx\n", round_keys[round]);
                 c = gift_64_subcells(c);
                 c = gift_64_permute(c);
                 c ^= round_keys[round];
