@@ -127,7 +127,6 @@ state and the single round is complete. \texttt{GIFT-64} uses 28 rounds while
     \centering
     \includegraphics[width=\textwidth]{Figures/GIFT-64.pdf}
     \caption{Two rounds of GIFT-64}
-    \label{fig:gift64}
 \end{figure}
 
 \subsubsection{Substitution layer}
@@ -261,7 +260,7 @@ Implementing this algorithm gives us the following table representing the first
 and second S-box.
 
 \[
-    \begin{array}{l|l|l|c}\label{table:gift64subperm}
+    \begin{array}{l|l|l|c}
         x & T_0(x) & T_1(x) & \dots \\
         \hline
         0x0 & 0x1               & 0x1000000000000   & \dots \\
@@ -312,12 +311,11 @@ for example the register \texttt{V0} are:
 \begin{figure}[h!]
     \centering
     \includegraphics[width=\textwidth]{Figures/V_register.pdf}
-    \caption{Divisions of the V register}
-    \label{fig:gift64}
+    \caption{Divisions of the V0 register}
 \end{figure}
 
 NEON instructions interpret their operands' layouts (i.e. lane count and width)
-through the use of suffixes such as \texttt{.4S} or \texttt{.8H}. For instance,
+through the use of suffixes such as \texttt{.4S} or \texttt{.8H}. For example,
 adding eight 16-bit halfwords from register \texttt{V1} and \texttt{V2}
 together and storing the result in \texttt{V0} can be done as follows:
 
@@ -329,7 +327,6 @@ together and storing the result in \texttt{V0} can be done as follows:
     \centering
     \includegraphics[width=\textwidth]{Figures/vector_add.pdf}
     \caption{Addition of two vector registers}
-    \label{fig:gift64}
 \end{figure}
 
 The plenitude of different processing instructions allow flexible ways to
@@ -337,7 +334,7 @@ further speed up algorithms having reached their optimizational limit on
 non-SIMD platforms. \texttt{vperm}, a general term standing for \textit{vector
 permute}, is a common instruction on SIMD machines. Called \texttt{TBL} on
 NEON, it is used for parallel table lookups and arbitrary permutations. It takes
-two inputs and performs a lanewise lookup:
+two inputs to perform a lanewise lookup:
 
 \begin{enumerate}
     \item A register with lookup values
@@ -349,11 +346,43 @@ two inputs and performs a lanewise lookup:
 This instruction can be used to implement S-box lookup of all 16 S-boxes in a
 single instruction. We do this by packing our 64-bit cipher state
 $s=s_{15}||s_{14}||\dots||s_0$ into a vector register $V_0$. Because we can
-only operate on whole bytes, we put each 4-bit S-box into an 8-bit lane. We
-then put the S-box itself into register $V_1$ which will be used as the data
-register for the table lookup.
+only operate on whole bytes, we put each 4-bit S-box into an 8-bit lane which
+neatly fits into the 128-bit registers. We then put the S-box itself into
+register $V_1$ which will be used as the data register for the table lookup.
+
+The confusion layer can now be performed through one \texttt{TBL} instruction:
+
+\begin{center}
+    \texttt{TBL V0.16B, V1.16B, V0.16B}
+\end{center}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/tbl_example.pdf}
+    \caption{Performing the S-Box lookup in parallel}
+\end{figure}
 
 \subsection{Bitslicing}
+
+Bitslicing refers to the technique of splitting up $n$ bits into $m$ slices to
+achieve a more efficient representation to operate on. The structure of \texttt{GIFT}
+naturally offers possibilities for bitslicing. We split the cipher state bits $b_{63}b_{62}\dots b_0$
+into four slices $S_i,0\leq i\leq 3$:
+
+\[
+    S=\begin{bmatrix}
+        S_0\\
+        S_1\\
+        S_2\\
+        S_3
+    \end{bmatrix}
+    =\begin{bmatrix}
+        b_{60}b_{56}b_{52}\dots b_0\\
+        b_{61}b_{57}b_{53}\dots b_1\\
+        b_{62}b_{58}b_{54}\dots b_2\\
+        b_{63}b_{59}b_{55}\dots b_3
+    \end{bmatrix}
+\]
 
 \chapter{Implementation}
 
