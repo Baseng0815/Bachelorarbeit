@@ -146,8 +146,8 @@ $S:\F{4}\rightarrow \F{4}$ is defined as follows:
 \subsubsection{Permutation layer}
 
 The permutation $P$ works on individual bits and maps bit $b_i$ to $b_{P(i)},
-\forall i\in\{0,1,\dots,n-1\}$. The different permutations for \texttt{GIFT-64}
-and \texttt{GIFT-128} can be expressed by:
+i\in\{0,1,\dots,n-1\}$. The different permutations for \texttt{GIFT-64} and
+\texttt{GIFT-128} can be expressed by:
 
 \begin{align*}
     P_{64}(i)&=4\left\lfloor\frac{i}{16}\right\rfloor+16\left(\left(3\left\lfloor\frac{i\bmod 16}{4}\right\rfloor+(i\bmod 4)\right)\bmod 4\right)+(i\bmod 4) \\
@@ -298,7 +298,7 @@ types of vector processing are available:
 \end{enumerate}
 
 We will take a look at NEON as this is the type of vector processing supported
-by the Cortex A-73 processor.
+by the Cortex-A73 processor.
 
 \subsubsection{ARM Neon}
 
@@ -365,9 +365,11 @@ The confusion layer can now be performed through one \texttt{TBL} instruction:
 \subsection{Bitslicing}
 
 Bitslicing refers to the technique of splitting up $n$ bits into $m$ slices to
-achieve a more efficient representation to operate on. The structure of \texttt{GIFT}
-naturally offers possibilities for bitslicing. We split the cipher state bits $b_{63}b_{62}\dots b_0$
-into four slices $S_i,0\leq i\leq 3$:
+achieve a more efficient representation to operate on. The structure of
+\texttt{GIFT} naturally offers possibilities for bitslicing. We split the
+cipher state bits $b_{63}b_{62}\dots b_0$ into four slices $S_i,
+i\in\{0,1,2,3\}$ such that the $i$-th slice contains all $i$-th bits of the
+individual S-boxes.
 
 \[
     S=\begin{bmatrix}
@@ -383,6 +385,137 @@ into four slices $S_i,0\leq i\leq 3$:
         b_{63}b_{59}b_{55}\dots b_3
     \end{bmatrix}
 \]
+
+This representation offers multiple advantages. We first note that computation
+of the S-box can be executed in parallel, similar to the \texttt{vperm}
+technique above. This can be done by finding an algorithmic way to apply the
+S-box which has already been proposed by the original \texttt{GIFT} authors:
+
+\begin{align*}
+    S_1&\leftarrow S_1\oplus (S_0\land S_2) \\
+    t&\leftarrow S_0\oplus (S_1\land S_3) \\
+    S_2&\leftarrow S_2\oplus (t\lor S_1) \\
+    S_0&\leftarrow S_3\oplus S_2 \\
+    S_1&\leftarrow S_1\oplus S_0 \\
+    S_0&\leftarrow \lnot S_0 \\
+    S_2&\leftarrow S_2\oplus (t\land S_1) \\
+    S_3&\leftarrow t
+\end{align*}
+
+This is very efficient as it only requires six XOR-, three AND and one OR
+operation.
+
+An important property of the permutation is the fact that bits always stay in
+their slice. This means we can decompose the permutation $P$ into four
+permutations $P_i,i\in\{0,1,2,3\}$ and apply these permutations
+separately to each slice. One possible way to implement a permutation $P_i$ in
+software is to mask off all bits individually, shift them to their correct
+position and OR them together:
+
+\[
+    P_i(S_i)=\bigvee_{k=0}^{15}{(S_i\land m_i) \ll s_i}
+\]
+
+This approach requires $47$ operations, meaning all four permutations require
+over $150$ operations which would present a major bottleneck to the round
+function. We can improve on this by working on multiple message blocks at once
+and using the aforementioned \texttt{vperm} instruction to implement the bit
+shuffling. We then need only four \texttt{TBL} instructions for the complete
+diffusion layer.
+
+\subsubsection{Using \texttt{vperm} for slice permutation}
+
+We cannot use the \texttt{TBL} instruction directly as we need to shuffle
+individual bits, but the smallest data we can operate on are bytes. We
+therefore encrypt $8n$ messages at once which allows us to create bytewise
+groupings. These messages are put into $4m$ registers with register $R_{4i}$
+containing $S_0$, register $R_{4i+1}$ containing $S_1$ and so forth. With block
+size $BS$ and register size $RS$, the following must hold:
+
+\[
+    8n\cdot BS=4m\cdot RS
+\]
+
+In the case of \texttt{GIFT-64} with $BS=64$ and ARM NEON with $RS=128$, we get
+
+\[
+    8n\cdot 64=4m\cdot 128\Leftrightarrow n=m
+\]
+
+We choose $n=m=1$, so for each encryption, we divide eight messages into four
+registers.
+
+\subsubsection{Packing the data into bitslice format}
+
+Let $a,b,c,d,e,f,g,h$ be eight messages with subscripts denoting individual
+bits. We first put these messages into four SIMD registers $V_0,V_1,V_2,V_3$:
+
+\begin{align*}
+    V_0&=b||a \\
+    V_1&=d||c \\
+    V_2&=f||e \\
+    V_3&=h||g
+\end{align*}
+
+We then use the \texttt{SWAPMOVE} technique to bring the data into bitslice
+format. This operation operates on two registers $A,B$ using mask $M$ and shift
+value $N$. It swaps bits in $A$ masked by $M$ with bits masked by $M\ll N$ in
+B using only three XOR-, one AND- and two shift operations.
+
+\begin{align*}
+    &\text{SWAPMOVE}(A,B,M,N): \\
+    &\qquad T=((A\gg N)\oplus B)\land M \\
+    &\qquad B=B\oplus T \\
+    &\qquad A=A\oplus (T\ll N) \\
+\end{align*}
+
+The following operations put all of the first bits of each S-Box into $V_0$,
+each second bit into $V_1$ and so forth and regroups these bits into bytes.
+
+\begin{align*}
+    &\text{SWAPMOVE}(V_0,V_1,0x5555\dots 55,1) &\text{SWAPMOVE}(V_0,V_0,0xf0f0\dots 0f,4) \\
+    &\text{SWAPMOVE}(V_2,V_3,0x5555\dots 55,1) &\text{SWAPMOVE}(V_1,V_1,0xf0f0\dots 0f,4) \\
+    &\text{SWAPMOVE}(V_0,V_2,0x3333\dots 33,2) &\text{SWAPMOVE}(V_2,V_2,0xf0f0\dots 0f,4) \\
+    &\text{SWAPMOVE}(V_1,V_3,0x3333\dots 33,2) &\text{SWAPMOVE}(V_3,V_3,0xf0f0\dots 0f,4)
+\end{align*}
+
+With numbers denoting byte groups (i.e. $3$ corresponding to
+$h_3g_3f_3e_3d_3c_3b_3a_3$), our data now has the following
+permutation-friendly format:
+
+\begin{alignat*}{7}
+    V_0&=&&124&&||\dots&&||12&&||8 &&||4&&||0 \\
+    V_1&=&&125&&||\dots&&||13&&||9 &&||5&&||1 \\
+    V_2&=&&126&&||\dots&&||14&&||10&&||6&&||2 \\
+    V_3&=&&127&&||\dots&&||15&&||11&&||7&&||3 \\
+\end{alignat*}
+
+We can now create permutation tables using the specification of the individual
+slice permutations $P_i$:
+
+\[
+    \begin{array}{c|llllllllllllllll}
+        j & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 \\
+        \hline
+        P_0(j) & 0 & 12 & 8 & 4 & 1 & 13 & 9 & 5 & 2 & 14 & 10 & 6 & 3 & 15 & 11 & 7 \\
+        P_1(j) & 4 & 0 & 12 & 8 & 5 & 1 & 13 & 9 & 6 & 2 & 14 & 10 & 7 & 3 & 15 & 11 \\
+        P_2(j) & 8 & 4 & 0 & 12 & 9 & 5 & 1 & 13 & 10 & 6 & 2 & 14 & 11 & 7 & 3 & 15 \\
+        P_3(j) & 12 & 8 & 4 & 0 & 13 & 9 & 5 & 1 & 14 & 10 & 6 & 2 & 15 & 11 & 7 & 3
+    \end{array}
+\]
+
+One thing to take note of is the original permutation values only showing where
+a given byte should land, not which byte belongs to a certain position - i.e.
+for $P_0$, byte 1 should land in position 12, but the byte belonging to
+position 1 is byte 4. Because \texttt{vperm} works in the latter way, we have
+to do some trivial rearrangements. Putting these values into registers
+$V_5,V_6,V_7,V_8$ now allows us to compute the permutation layer in only four
+instructions:
+
+\begin{align*}
+    &\texttt{TBL V0, V0, V5} &\texttt{TBL V1, V1, V6} \\
+    &\texttt{TBL V2, V2, V7} &\texttt{TBL V3, V3, V8}
+\end{align*}
 
 \chapter{Implementation}
 

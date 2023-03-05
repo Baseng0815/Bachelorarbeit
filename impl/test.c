@@ -152,6 +152,8 @@ void test_gift_64_table(void)
 
 void test_gift_64_vec_sbox(void)
 {
+        gift_64_vec_sbox_init();
+
         // test encrypt to known value
         printf("testing GIFT_64_VEC_SBOX encrytion to known value...\n");
         uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };

@@ -7,6 +7,28 @@
 static uint8x16_t sbox_vec;
 static uint8x16_t sbox_vec_inv;
 
+#define U64_TO_V128(V,M)\
+        V = vsetq_lane_u64(\
+        (uint64_t)((M >> 4 * 0) & 0xf) << 8 * 0 |\
+        (uint64_t)((M >> 4 * 1) & 0xf) << 8 * 1 |\
+        (uint64_t)((M >> 4 * 2) & 0xf) << 8 * 2 |\
+        (uint64_t)((M >> 4 * 3) & 0xf) << 8 * 3 |\
+        (uint64_t)((M >> 4 * 4) & 0xf) << 8 * 4 |\
+        (uint64_t)((M >> 4 * 5) & 0xf) << 8 * 5 |\
+        (uint64_t)((M >> 4 * 6) & 0xf) << 8 * 6 |\
+        (uint64_t)((M >> 4 * 7) & 0xf) << 8 * 7,\
+        V, 0);\
+        V = vsetq_lane_u64(\
+        (uint64_t)((M >> 4 * 8)  & 0xf) << 8 * 0 |\
+        (uint64_t)((M >> 4 * 9)  & 0xf) << 8 * 1 |\
+        (uint64_t)((M >> 4 * 10) & 0xf) << 8 * 2 |\
+        (uint64_t)((M >> 4 * 11) & 0xf) << 8 * 3 |\
+        (uint64_t)((M >> 4 * 12) & 0xf) << 8 * 4 |\
+        (uint64_t)((M >> 4 * 13) & 0xf) << 8 * 5 |\
+        (uint64_t)((M >> 4 * 14) & 0xf) << 8 * 6 |\
+        (uint64_t)((M >> 4 * 15) & 0xf) << 8 * 7,\
+        V, 1);
+
 static const size_t perm_64[] = {
         0, 17, 34, 51, 48, 1, 18, 35, 32, 49, 2, 19, 16, 33, 50, 3,
         4, 21, 38, 55, 52, 5, 22, 39, 36, 53, 6, 23, 20, 37, 54, 7,
@@ -63,24 +85,8 @@ uint8x16_t gift_64_vec_sbox_permute(const uint8x16_t cipher_state)
                 }
         }
 
-        // load into vector register (yes, this is slow. too bad!)
         uint8x16_t ret;
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 0) & 0xf, ret, 0);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 1) & 0xf, ret, 1);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 2) & 0xf, ret, 2);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 3) & 0xf, ret, 3);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 4) & 0xf, ret, 4);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 5) & 0xf, ret, 5);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 6) & 0xf, ret, 6);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 7) & 0xf, ret, 7);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 8) & 0xf, ret, 8);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 9) & 0xf, ret, 9);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 10) & 0xf, ret, 10);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 11) & 0xf, ret, 11);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 12) & 0xf, ret, 12);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 13) & 0xf, ret, 13);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 14) & 0xf, ret, 14);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 15) & 0xf, ret, 15);
+        U64_TO_V128(ret, new_cipher_state);
 
         return ret;
 }
@@ -108,24 +114,8 @@ uint8x16_t gift_64_vec_sbox_permute_inv(const uint8x16_t cipher_state)
                 }
         }
 
-        // load into vector register (yes, this is slow. too bad!)
         uint8x16_t ret;
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 0) & 0xf, ret, 0);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 1) & 0xf, ret, 1);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 2) & 0xf, ret, 2);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 3) & 0xf, ret, 3);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 4) & 0xf, ret, 4);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 5) & 0xf, ret, 5);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 6) & 0xf, ret, 6);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 7) & 0xf, ret, 7);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 8) & 0xf, ret, 8);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 9) & 0xf, ret, 9);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 10) & 0xf, ret, 10);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 11) & 0xf, ret, 11);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 12) & 0xf, ret, 12);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 13) & 0xf, ret, 13);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 14) & 0xf, ret, 14);
-        ret = vsetq_lane_u8((new_cipher_state >> 4 * 15) & 0xf, ret, 15);
+        U64_TO_V128(ret, new_cipher_state);
 
         return ret;
 }
@@ -159,22 +149,7 @@ void gift_64_vec_sbox_generate_round_keys(uint8x16_t round_keys[ROUNDS_GIFT_64],
                 round_key ^= ((round_constant[round] >> 5) & 0x1) << 23;
 
                 // pack into vector register
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 0) & 0xf, round_keys[round], 0);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 1) & 0xf, round_keys[round], 1);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 2) & 0xf, round_keys[round], 2);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 3) & 0xf, round_keys[round], 3);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 4) & 0xf, round_keys[round], 4);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 5) & 0xf, round_keys[round], 5);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 6) & 0xf, round_keys[round], 6);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 7) & 0xf, round_keys[round], 7);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 8) & 0xf, round_keys[round], 8);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 9) & 0xf, round_keys[round], 9);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 10) & 0xf, round_keys[round], 10);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 11) & 0xf, round_keys[round], 11);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 12) & 0xf, round_keys[round], 12);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 13) & 0xf, round_keys[round], 13);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 14) & 0xf, round_keys[round], 14);
-                round_keys[round] = vsetq_lane_u8((round_key >> 4 * 15) & 0xf, round_keys[round], 15);
+                U64_TO_V128(round_keys[round], round_key)
 
                 // update key state
                 int k0 = (key_state[0] >> 0 ) & 0xffffUL;
@@ -188,44 +163,22 @@ void gift_64_vec_sbox_generate_round_keys(uint8x16_t round_keys[ROUNDS_GIFT_64],
         }
 }
 
-uint64_t gift_64_vec_sbox_encrypt(const uint64_t m, const uint64_t key[2])
+void gift_64_vec_sbox_init(void)
 {
         // construct sbox_vec
-        sbox_vec = vsetq_lane_u8(0x1, sbox_vec, 0);
-        sbox_vec = vsetq_lane_u8(0xa, sbox_vec, 1);
-        sbox_vec = vsetq_lane_u8(0x4, sbox_vec, 2);
-        sbox_vec = vsetq_lane_u8(0xc, sbox_vec, 3);
-        sbox_vec = vsetq_lane_u8(0x6, sbox_vec, 4);
-        sbox_vec = vsetq_lane_u8(0xf, sbox_vec, 5);
-        sbox_vec = vsetq_lane_u8(0x3, sbox_vec, 6);
-        sbox_vec = vsetq_lane_u8(0x9, sbox_vec, 7);
-        sbox_vec = vsetq_lane_u8(0x2, sbox_vec, 8);
-        sbox_vec = vsetq_lane_u8(0xd, sbox_vec, 9);
-        sbox_vec = vsetq_lane_u8(0xb, sbox_vec, 10);
-        sbox_vec = vsetq_lane_u8(0x7, sbox_vec, 11);
-        sbox_vec = vsetq_lane_u8(0x5, sbox_vec, 12);
-        sbox_vec = vsetq_lane_u8(0x0, sbox_vec, 13);
-        sbox_vec = vsetq_lane_u8(0x8, sbox_vec, 14);
-        sbox_vec = vsetq_lane_u8(0xe, sbox_vec, 15);
+        sbox_vec = vsetq_lane_u64(0x09030f060c040a01UL, sbox_vec, 0);
+        sbox_vec = vsetq_lane_u64(0x0e080005070b0d02UL, sbox_vec, 1);
 
+        // construct sbox_vec_inv
+        sbox_vec_inv = vsetq_lane_u64(0x0b040c020608000dUL, sbox_vec_inv, 0);
+        sbox_vec_inv = vsetq_lane_u64(0x050f09030a01070eUL, sbox_vec_inv, 1);
+}
+
+uint64_t gift_64_vec_sbox_encrypt(const uint64_t m, const uint64_t key[2])
+{
         // pack into vector register
         uint8x16_t c;
-        c = vsetq_lane_u8((m >> 4 * 0) & 0xf, c, 0);
-        c = vsetq_lane_u8((m >> 4 * 1) & 0xf, c, 1);
-        c = vsetq_lane_u8((m >> 4 * 2) & 0xf, c, 2);
-        c = vsetq_lane_u8((m >> 4 * 3) & 0xf, c, 3);
-        c = vsetq_lane_u8((m >> 4 * 4) & 0xf, c, 4);
-        c = vsetq_lane_u8((m >> 4 * 5) & 0xf, c, 5);
-        c = vsetq_lane_u8((m >> 4 * 6) & 0xf, c, 6);
-        c = vsetq_lane_u8((m >> 4 * 7) & 0xf, c, 7);
-        c = vsetq_lane_u8((m >> 4 * 8) & 0xf, c, 8);
-        c = vsetq_lane_u8((m >> 4 * 9) & 0xf, c, 9);
-        c = vsetq_lane_u8((m >> 4 * 10) & 0xf, c, 10);
-        c = vsetq_lane_u8((m >> 4 * 11) & 0xf, c, 11);
-        c = vsetq_lane_u8((m >> 4 * 12) & 0xf, c, 12);
-        c = vsetq_lane_u8((m >> 4 * 13) & 0xf, c, 13);
-        c = vsetq_lane_u8((m >> 4 * 14) & 0xf, c, 14);
-        c = vsetq_lane_u8((m >> 4 * 15) & 0xf, c, 15);
+        U64_TO_V128(c, m);
 
         // generate round keys
         uint8x16_t round_keys[ROUNDS_GIFT_64];
@@ -262,42 +215,9 @@ uint64_t gift_64_vec_sbox_encrypt(const uint64_t m, const uint64_t key[2])
 
 uint64_t gift_64_vec_sbox_decrypt(const uint64_t c, const uint64_t key[2])
 {
-        // construct sbox_vec_inv
-        sbox_vec_inv = vsetq_lane_u8(0xd, sbox_vec_inv, 0);
-        sbox_vec_inv = vsetq_lane_u8(0x0, sbox_vec_inv, 1);
-        sbox_vec_inv = vsetq_lane_u8(0x8, sbox_vec_inv, 2);
-        sbox_vec_inv = vsetq_lane_u8(0x6, sbox_vec_inv, 3);
-        sbox_vec_inv = vsetq_lane_u8(0x2, sbox_vec_inv, 4);
-        sbox_vec_inv = vsetq_lane_u8(0xc, sbox_vec_inv, 5);
-        sbox_vec_inv = vsetq_lane_u8(0x4, sbox_vec_inv, 6);
-        sbox_vec_inv = vsetq_lane_u8(0xb, sbox_vec_inv, 7);
-        sbox_vec_inv = vsetq_lane_u8(0xe, sbox_vec_inv, 8);
-        sbox_vec_inv = vsetq_lane_u8(0x7, sbox_vec_inv, 9);
-        sbox_vec_inv = vsetq_lane_u8(0x1, sbox_vec_inv, 10);
-        sbox_vec_inv = vsetq_lane_u8(0xa, sbox_vec_inv, 11);
-        sbox_vec_inv = vsetq_lane_u8(0x3, sbox_vec_inv, 12);
-        sbox_vec_inv = vsetq_lane_u8(0x9, sbox_vec_inv, 13);
-        sbox_vec_inv = vsetq_lane_u8(0xf, sbox_vec_inv, 14);
-        sbox_vec_inv = vsetq_lane_u8(0x5, sbox_vec_inv, 15);
-
         // pack into vector register
         uint8x16_t m;
-        m = vsetq_lane_u8((c >> 4 * 0) & 0xf, m, 0);
-        m = vsetq_lane_u8((c >> 4 * 1) & 0xf, m, 1);
-        m = vsetq_lane_u8((c >> 4 * 2) & 0xf, m, 2);
-        m = vsetq_lane_u8((c >> 4 * 3) & 0xf, m, 3);
-        m = vsetq_lane_u8((c >> 4 * 4) & 0xf, m, 4);
-        m = vsetq_lane_u8((c >> 4 * 5) & 0xf, m, 5);
-        m = vsetq_lane_u8((c >> 4 * 6) & 0xf, m, 6);
-        m = vsetq_lane_u8((c >> 4 * 7) & 0xf, m, 7);
-        m = vsetq_lane_u8((c >> 4 * 8) & 0xf, m, 8);
-        m = vsetq_lane_u8((c >> 4 * 9) & 0xf, m, 9);
-        m = vsetq_lane_u8((c >> 4 * 10) & 0xf, m, 10);
-        m = vsetq_lane_u8((c >> 4 * 11) & 0xf, m, 11);
-        m = vsetq_lane_u8((c >> 4 * 12) & 0xf, m, 12);
-        m = vsetq_lane_u8((c >> 4 * 13) & 0xf, m, 13);
-        m = vsetq_lane_u8((c >> 4 * 14) & 0xf, m, 14);
-        m = vsetq_lane_u8((c >> 4 * 15) & 0xf, m, 15);
+        U64_TO_V128(m, c);
 
         // generate round keys
         uint8x16_t round_keys[ROUNDS_GIFT_64];

@@ -99,6 +99,7 @@ void benchmark_gift_64_vec_sbox(void)
 {
         uint64_t key[2];
         key_rand(key);
+        gift_64_vec_sbox_init();
 
         uint8x16_t m;
         m = vsetq_lane_u32(rand(), m, 0);
