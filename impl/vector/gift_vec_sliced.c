@@ -14,29 +14,52 @@ static uint8x16_t pack_mask_0;
 static uint8x16_t pack_mask_1;
 static uint8x16_t pack_mask_2;
 
-void swapmove(uint8x16_t *a, uint8x16_t *b, uint8x16_t m, int n)
+uint8x16_t shl(uint8x16_t v, int n)
 {
-
+        uint64_t l0 = vgetq_lane_u64(v, 0);
+        uint64_t l1 = vgetq_lane_u64(v, 1);
+        l1 = l1 << n | (l0 >> (64 - n));
+        l0 <<= n;
+        uint8x16_t ret;
+        ret = vsetq_lane_u64(l0, ret, 0);
+        ret = vsetq_lane_u64(l1, ret, 1);
+        return ret;
 }
 
-void bits_pack(uint8x16x4_t m)
+uint8x16_t shr(uint8x16_t v, int n)
+{
+        uint64_t l0 = vgetq_lane_u64(v, 0);
+        uint64_t l1 = vgetq_lane_u64(v, 1);
+        l0 = l0 >> n | (((l1 << (64 - n)) >> (64 - n)) << (64 - n));
+        l1 >>= n;
+        uint8x16_t ret;
+        ret = vsetq_lane_u64(l0, ret, 0);
+        ret = vsetq_lane_u64(l1, ret, 1);
+        return ret;
+}
+
+void gift_64_vec_sliced_swapmove(uint8x16_t *a, uint8x16_t *b, uint8x16_t m, int n)
+{
+
+        uint8x16_t t = vandq_u8(veorq_u8(shl(*a, n), *b), m);
+        *b = veorq_u8(*b, t);
+        *a = veorq_u8(*a, shl(t, n));
+}
+
+void gift_64_vec_sliced_bits_pack(uint8x16x4_t m)
 {
         // take care not to shift mask bits out of the register
-        swapmove(m.val[0], m.val[1], 0x5555555555555555UL, 1);
-        swapmove(m.val[2], m.val[3], 0x5555555555555555UL, 1);
-        swapmove(m.val[4], m.val[5], 0x5555555555555555UL, 1);
-        swapmove(m.val[6], m.val[7], 0x5555555555555555UL, 1);
+        gift_64_vec_sliced_swapmove(&m.val[0], &m.val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m.val[2], &m.val[3], pack_mask_0, 1);
 
-        swapmove(m.val[0], m.val[2], 0x3333333333333333UL, 2);
-        swapmove(m.val[1], m.val[3], 0x3333333333333333UL, 2);
-        swapmove(m.val[4], m.val[6], 0x3333333333333333UL, 2);
-        swapmove(m.val[5], m.val[7], 0x3333333333333333UL, 2);
+        gift_64_vec_sliced_swapmove(&m.val[0], &m.val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m.val[1], &m.val[3], pack_mask_1, 2);
 
         // make bytes (a0 b0 c0 d0 a4 b4 c4 d4 -> a0 b0 c0 d0 e0 f0 g0 h0)
-        swapmove(m.val[0], m.val[4], 0x0f0f0f0f0f0f0f0fUL, 4);
-        swapmove(m.val[2], m.val[6], 0x0f0f0f0f0f0f0f0fUL, 4);
-        swapmove(m.val[1], m.val[5], 0x0f0f0f0f0f0f0f0fUL, 4);
-        swapmove(m.val[3], m.val[7], 0x0f0f0f0f0f0f0f0fUL, 4);
+        gift_64_vec_sliced_swapmove(&m.val[0], &m.val[0], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m.val[1], &m.val[1], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m.val[2], &m.val[2], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m.val[3], &m.val[3], pack_mask_2, 4);
 }
 
 void gift_64_vec_sliced_subcells(uint8x16x4_t cs)
@@ -122,12 +145,12 @@ void gift_64_vec_sliced_init(void)
         pack_mask_2 = vsetq_lane_u64(0x0f0f0f0f0f0f0f0fUL, pack_mask_2, 1);
 }
 
-void gift_64_vec_sbox_encrypt(uint64_t c[8], const uint64_t m[8], const uint64_t key[2])
+void gift_64_vec_sliced_encrypt(uint64_t c[8], const uint64_t m[8], const uint64_t key[2])
 {
 
 }
 
-void gift_64_vec_sbox_decrypt(uint64_t m[8], const uint64_t c[8], const uint64_t key[2])
+void gift_64_vec_sliced_decrypt(uint64_t m[8], const uint64_t c[8], const uint64_t key[2])
 {
 
 }

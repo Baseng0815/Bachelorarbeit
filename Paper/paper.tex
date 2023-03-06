@@ -369,7 +369,7 @@ achieve a more efficient representation to operate on. The structure of
 \texttt{GIFT} naturally offers possibilities for bitslicing. We split the
 cipher state bits $b_{63}b_{62}\dots b_0$ into four slices $S_i,
 i\in\{0,1,2,3\}$ such that the $i$-th slice contains all $i$-th bits of the
-individual S-boxes.
+individual S-boxes. This is equivalent to transposing the bit matrix.
 
 \[
     S=\begin{bmatrix}
@@ -447,8 +447,9 @@ registers.
 
 \subsubsection{Packing the data into bitslice format}
 
-Let $a,b,c,d,e,f,g,h$ be eight messages with subscripts denoting individual
-bits. We first put these messages into four SIMD registers $V_0,V_1,V_2,V_3$:
+Let $a,b,c,d,e,f,g,h$ be eight messages of length $64$ with subscripts denoting
+individual bits. We first put these messages into four SIMD registers
+$V_0,V_1,V_2,V_3$:
 
 \begin{align*}
     V_0&=b||a \\
@@ -519,11 +520,12 @@ instructions:
 
 \chapter{Implementation}
 
+We will provide implementations for the presented strategies in the C
+programming language. Although directly writing Assembler code could result in
+a small performance benefit, this generally increases the work necessary by an
+order of magnitude for only limited results.
+
 \chapter{Evaluation}
-
-\section{Limitations}
-
-\section{Benchmarks}
 
 \chapter*{Acknowledgements}
 

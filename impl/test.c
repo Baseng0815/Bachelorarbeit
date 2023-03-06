@@ -2,6 +2,7 @@
 #include "naive/gift_sliced.h"
 #include "table/gift_table.h"
 #include "vector/gift_vec_sbox.h"
+#include "vector/gift_vec_sliced.h"
 
 #include <stdio.h>
 #include <stdlib.h>

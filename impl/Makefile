@@ -6,7 +6,7 @@ UFLAGS	= -O3 -Wall -gdwarf-4
 SESNAME	= thesis
 HOST 	= odroid
 
-SOURCE_FILES 	= naive/gift.c naive/gift_sliced.c table/gift_table.c vector/gift_vec_sbox.c
+SOURCE_FILES 	= naive/gift.c naive/gift_sliced.c table/gift_table.c vector/gift_vec_sbox.c vector/gift_vec_sliced.c
 BENCH_SOURCE	= benchmark.c
 BENCH_OUT 	= benchmark
 TEST_SOURCE	= test.c
