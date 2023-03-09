@@ -4,6 +4,7 @@
 #include "naive/gift_sliced.h"
 #include "table/gift_table.h"
 #include "vector/gift_vec_sbox.h"
+#include "vector/gift_vec_sliced.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,6 +131,12 @@ int main(int argc, char *argv[])
         benchmark_gift_64();
         benchmark_gift_128();
         benchmark_gift_64_vec_sbox();
+
+        uint64_t t0, t1;
+        uint8x16_t v = vdupq_n_u8(31);
+        while (1) {
+                MEASURE(shl(v, 7), t0, t1);
+        }
 }
 
 #pragma clang optimize on
