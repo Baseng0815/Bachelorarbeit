@@ -184,11 +184,19 @@ void test_gift_64_vec_sliced(void)
         // test encrypt to known value
         printf("testing GIFT_64_VEC_SLICED encrytion to known value...\n");
         uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };
-        uint64_t m[8] = { 0xffffffffffffffffUL };
+        uint64_t m[16] = {
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+        };
         uint64_t c_expected = 0xb11d30b8d39763e1UL;
-        uint64_t c[8];
+        uint64_t c[16];
         gift_64_vec_sliced_encrypt(c, m, key);
-        printf("%lx\n", c[0]);
         ASSERT_EQUALS(c[0], c_expected);
         ASSERT_EQUALS(c[1], c_expected);
 
@@ -196,13 +204,13 @@ void test_gift_64_vec_sliced(void)
         printf("testing GIFT_64_VEC_SLICED encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
                 key_rand(key);
-                m_rand(m, 8 * 8);
+                m_rand((uint8_t*)m, sizeof(m));
 
                 gift_64_vec_sliced_encrypt(c, m, key);
                 // only encryption for table approach
-                uint64_t m_actual[8];
+                uint64_t m_actual[16];
                 gift_64_vec_sliced_decrypt(m_actual, c, key);
-                ASSERT_TRUE(memcmp(m, m_actual, 8 * 8) == 0);
+                ASSERT_TRUE(memcmp(m, m_actual, sizeof(m_actual)) == 0);
         }
 }
 

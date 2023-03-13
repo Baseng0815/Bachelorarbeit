@@ -1,16 +1,33 @@
 #include "gift_vec_sliced.h"
 
 #include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
-static uint8x16_t perm_s0;
-static uint8x16_t perm_s1;
-static uint8x16_t perm_s2;
-static uint8x16_t perm_s3;
+static uint64_t perm_u64[16] = {
+        0x1410050115110400UL, 0x1410050115110400UL,
+        0x0501151104001410UL, 0x0501151104001410UL,
+        0x1511040014100501UL, 0x1511040014100501UL,
+        0x0400141005011511UL, 0x0400141005011511UL,
+        0x1612070317130602UL, 0x1612070317130602UL,
+        0x0703171306021612UL, 0x0703171306021612UL,
+        0x1713060216120703UL, 0x1713060216120703UL,
+        0x0602161207031713UL, 0x0602161207031713UL
+};
 
-static uint8x16_t perm_inv_s0;
-static uint8x16_t perm_inv_s1;
-static uint8x16_t perm_inv_s2;
-static uint8x16_t perm_inv_s3;
+static uint64_t perm_inv_u64[16] = {
+        0x1511050114100400UL, 0x1511050114100400UL,
+        0x1713070316120602UL, 0x1713070316120602UL,
+        0x1115010510140004UL, 0x1115010510140004UL,
+        0x1317030712160206UL, 0x1317030712160206UL,
+        0x1317030712160206UL, 0x1317030712160206UL,
+        0x1511050114100400UL, 0x1511050114100400UL,
+        0x1713070316120602UL, 0x1713070316120602UL,
+        0x1115010510140004UL, 0x1115010510140004UL,
+};
+
+static uint8x16x4_t perm[2];
+static uint8x16x4_t perm_inv[2];
 
 static uint8x16_t pack_mask_0;
 static uint8x16_t pack_mask_1;
@@ -50,73 +67,118 @@ uint8x16_t shr(uint8x16_t v, int n)
         return ret;
 }
 
-void gift_64_vec_sliced_swapmove(uint8x16_t *a, uint8x16_t *b, uint8x16_t m, int n)
+void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b, uint8x16_t m, int n)
 {
 
         uint8x16_t t = vandq_u8(veorq_u8(shr(*a, n), *b), m);
-        // TODO use 16 words (8 registers) so a != b
         *b = veorq_u8(*b, t);
         *a = veorq_u8(*a, shl(t, n));
 }
 
-void gift_64_vec_sliced_bits_pack(uint8x16x4_t *m)
+void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2])
 {
         // take care not to shift mask bits out of the register
-        gift_64_vec_sliced_swapmove(&m->val[0], &m->val[1], pack_mask_0, 1);
-        gift_64_vec_sliced_swapmove(&m->val[2], &m->val[3], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[0].val[3], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m[1].val[2], &m[1].val[3], pack_mask_0, 1);
 
-        gift_64_vec_sliced_swapmove(&m->val[0], &m->val[2], pack_mask_1, 2);
-        gift_64_vec_sliced_swapmove(&m->val[1], &m->val[3], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[0].val[3], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m[1].val[1], &m[1].val[3], pack_mask_1, 2);
 
         // make bytes (a0 b0 c0 d0 a4 b4 c4 d4 -> a0 b0 c0 d0 e0 f0 g0 h0)
-        gift_64_vec_sliced_swapmove(&m->val[0], &m->val[0], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m->val[1], &m->val[1], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m->val[2], &m->val[2], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m->val[3], &m->val[3], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[1].val[0], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[1].val[2], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[1].val[1], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m[0].val[3], &m[1].val[3], pack_mask_2, 4);
 }
 
-void gift_64_vec_sliced_subcells(uint8x16x4_t cs)
+void gift_64_vec_sliced_subcells(uint8x16x4_t cs[restrict 2])
 {
-        cs.val[1]       = veorq_u8(cs.val[1], vandq_u8(cs.val[0], cs.val[2]));
-        uint8x16_t t    = veorq_u8(cs.val[0], vandq_u8(cs.val[1], cs.val[3]));
-        cs.val[2]       = veorq_u8(cs.val[2], vorrq_u8(t, cs.val[1]));
-        cs.val[0]       = veorq_u8(cs.val[3], cs.val[2]);
-        cs.val[1]       = veorq_u8(cs.val[1], cs.val[0]);
-        cs.val[0]       = vmvnq_u8(cs.val[0]);
-        cs.val[2]       = veorq_u8(cs.val[2], vandq_u8(t, cs.val[1]));
-        cs.val[3]       = t;
+        cs[0].val[1] = veorq_u8(cs[0].val[1], vandq_u8(cs[0].val[0], cs[0].val[2]));
+        uint8x16_t t = veorq_u8(cs[0].val[0], vandq_u8(cs[0].val[1], cs[0].val[3]));
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vorrq_u8(t, cs[0].val[1]));
+        cs[0].val[0] = veorq_u8(cs[0].val[3], cs[0].val[2]);
+        cs[0].val[1] = veorq_u8(cs[0].val[1], cs[0].val[0]);
+        cs[0].val[0] = vmvnq_u8(cs[0].val[0]);
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vandq_u8(t, cs[0].val[1]));
+        cs[0].val[3] = t;
+
+        cs[1].val[1] = veorq_u8(cs[1].val[1], vandq_u8(cs[1].val[0], cs[1].val[2]));
+        t            = veorq_u8(cs[1].val[0], vandq_u8(cs[1].val[1], cs[1].val[3]));
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vorrq_u8(t, cs[1].val[1]));
+        cs[1].val[0] = veorq_u8(cs[1].val[3], cs[1].val[2]);
+        cs[1].val[1] = veorq_u8(cs[1].val[1], cs[1].val[0]);
+        cs[1].val[0] = vmvnq_u8(cs[1].val[0]);
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vandq_u8(t, cs[1].val[1]));
+        cs[1].val[3] = t;
 }
 
-void gift_64_vec_sliced_subcells_inv(uint8x16x4_t cs)
+void gift_64_vec_sliced_subcells_inv(uint8x16x4_t cs[restrict 2])
 {
-        uint8x16_t t    = cs.val[3];
-        cs.val[2]       = veorq_u8(cs.val[2], vandq_u8(t, cs.val[1]));
-        cs.val[0]       = vmvnq_u8(cs.val[0]);
-        cs.val[1]       = veorq_u8(cs.val[1], cs.val[0]);
-        cs.val[3]       = veorq_u8(cs.val[0], cs.val[2]);
-        cs.val[2]       = veorq_u8(cs.val[2], vorrq_u8(t, cs.val[1]));
-        cs.val[0]       = veorq_u8(t, vandq_u8(cs.val[1], cs.val[3]));
-        cs.val[1]       = veorq_u8(cs.val[1], vandq_u8(cs.val[0], cs.val[2]));
+        uint8x16_t t = cs[0].val[3];
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vandq_u8(t, cs[0].val[1]));
+        cs[0].val[0] = vmvnq_u8(cs[0].val[0]);
+        cs[0].val[1] = veorq_u8(cs[0].val[1], cs[0].val[0]);
+        cs[0].val[3] = veorq_u8(cs[0].val[0], cs[0].val[2]);
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vorrq_u8(t, cs[0].val[1]));
+        cs[0].val[0] = veorq_u8(t, vandq_u8(cs[0].val[1], cs[0].val[3]));
+        cs[0].val[1] = veorq_u8(cs[0].val[1], vandq_u8(cs[0].val[0], cs[0].val[2]));
+
+        t            = cs[1].val[3];
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vandq_u8(t, cs[1].val[1]));
+        cs[1].val[0] = vmvnq_u8(cs[1].val[0]);
+        cs[1].val[1] = veorq_u8(cs[1].val[1], cs[1].val[0]);
+        cs[1].val[3] = veorq_u8(cs[1].val[0], cs[1].val[2]);
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vorrq_u8(t, cs[1].val[1]));
+        cs[1].val[0] = veorq_u8(t, vandq_u8(cs[1].val[1], cs[1].val[3]));
+        cs[1].val[1] = veorq_u8(cs[1].val[1], vandq_u8(cs[1].val[1], cs[1].val[2]));
 }
 
-void gift_64_vec_sliced_permute(uint8x16x4_t cs)
+void gift_64_vec_sliced_permute(uint8x16x4_t cs[restrict 2])
 {
-        cs.val[0] = vqtbl1q_u8(cs.val[0], perm_s0);
-        cs.val[1] = vqtbl1q_u8(cs.val[1], perm_s1);
-        cs.val[2] = vqtbl1q_u8(cs.val[2], perm_s2);
-        cs.val[3] = vqtbl1q_u8(cs.val[3], perm_s3);
+        uint8x16x2_t pairs[4] = {
+                { .val = { cs[0].val[0], cs[1].val[0] }},
+                { .val = { cs[0].val[1], cs[1].val[1] }},
+                { .val = { cs[0].val[2], cs[1].val[2] }},
+                { .val = { cs[0].val[3], cs[1].val[3] }},
+        };
+
+        cs[0].val[0] = vqtbl2q_u8(pairs[0], perm[0].val[0]);
+        cs[0].val[1] = vqtbl2q_u8(pairs[1], perm[0].val[1]);
+        cs[0].val[2] = vqtbl2q_u8(pairs[2], perm[0].val[2]);
+        cs[0].val[3] = vqtbl2q_u8(pairs[3], perm[0].val[3]);
+
+        cs[1].val[0] = vqtbl2q_u8(pairs[0], perm[1].val[0]);
+        cs[1].val[1] = vqtbl2q_u8(pairs[1], perm[1].val[1]);
+        cs[1].val[2] = vqtbl2q_u8(pairs[2], perm[1].val[2]);
+        cs[1].val[3] = vqtbl2q_u8(pairs[3], perm[1].val[3]);
 }
 
-void gift_64_vec_sliced_permute_inv(uint8x16x4_t cs)
+void gift_64_vec_sliced_permute_inv(uint8x16x4_t cs[restrict 2])
 {
-        cs.val[0] = vqtbl1q_u8(cs.val[0], perm_inv_s0);
-        cs.val[1] = vqtbl1q_u8(cs.val[1], perm_inv_s1);
-        cs.val[2] = vqtbl1q_u8(cs.val[2], perm_inv_s2);
-        cs.val[3] = vqtbl1q_u8(cs.val[3], perm_inv_s3);
+        uint8x16x2_t pairs[4] = {
+                { .val = { cs[0].val[0], cs[1].val[0] }},
+                { .val = { cs[0].val[1], cs[1].val[1] }},
+                { .val = { cs[0].val[2], cs[1].val[2] }},
+                { .val = { cs[0].val[3], cs[1].val[3] }},
+        };
+
+        cs[0].val[0] = vqtbl2q_u8(pairs[0], perm_inv[0].val[0]);
+        cs[0].val[1] = vqtbl2q_u8(pairs[1], perm_inv[0].val[1]);
+        cs[0].val[2] = vqtbl2q_u8(pairs[2], perm_inv[0].val[2]);
+        cs[0].val[3] = vqtbl2q_u8(pairs[3], perm_inv[0].val[3]);
+
+        cs[1].val[0] = vqtbl2q_u8(pairs[0], perm_inv[1].val[0]);
+        cs[1].val[1] = vqtbl2q_u8(pairs[1], perm_inv[1].val[1]);
+        cs[1].val[2] = vqtbl2q_u8(pairs[2], perm_inv[1].val[2]);
+        cs[1].val[3] = vqtbl2q_u8(pairs[3], perm_inv[1].val[3]);
 }
 
-void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[ROUNDS_GIFT_64],
-                                            const uint64_t key[2])
+void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[restrict ROUNDS_GIFT_64][2],
+                                            const uint64_t key[restrict 2])
 {
         // TODO shift-and-or
 
@@ -145,13 +207,13 @@ void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[ROUNDS_GIFT_
                 round_key ^= ((round_constant[round] >> 4) & 0x1) << 19;
                 round_key ^= ((round_constant[round] >> 5) & 0x1) << 23;
 
-                round_keys[round].val[0] = vsetq_lane_u64(round_key, round_keys[round].val[0], 0);
-                round_keys[round].val[0] = vsetq_lane_u64(round_key, round_keys[round].val[0], 1);
-                round_keys[round].val[1] = round_keys[round].val[0];
-                round_keys[round].val[2] = round_keys[round].val[0];
-                round_keys[round].val[3] = round_keys[round].val[0];
+                round_keys[round][0].val[0] = vdupq_n_u64(round_key);
+                round_keys[round][0].val[1] = round_keys[round][0].val[0];
+                round_keys[round][0].val[2] = round_keys[round][0].val[0];
+                round_keys[round][0].val[3] = round_keys[round][0].val[0];
+                round_keys[round][1] = round_keys[round][0];
 
-                gift_64_vec_sliced_bits_pack(&round_keys[round]);
+                gift_64_vec_sliced_bits_pack(round_keys[round]);
 
                 // update key state
                 int k0 = (key_state[0] >> 0 ) & 0xffffUL;
@@ -167,83 +229,89 @@ void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[ROUNDS_GIFT_
 
 void gift_64_vec_sliced_init(void)
 {
-
-        // 0, 4, 8, c, 3, 7, b, f, 2, 6, a, e, 1, 5, 9, d
-        // 1, 5, 9, d, 0, 4, 8, c, 3, 7, b, f, 2, 6, a, e
-        // 2, 6, a, e, 1, 5, 9, d, 0, 4, 8, c, 3, 7, b, f
-        // 3, 7, b, f, 2, 6, a, e, 1, 5, 9, d, 0, 4, 8, c
-
         // permutations
-        perm_s0 = vsetq_lane_u64(0x0f0b07030c080400UL, perm_s0, 0);
-        perm_s0 = vsetq_lane_u64(0x0d0905010e0a0602UL, perm_s0, 1);
-        perm_s1 = vsetq_lane_u64(0x0c0804000d090501UL, perm_s1, 0);
-        perm_s1 = vsetq_lane_u64(0x0e0a06020f0b0703UL, perm_s1, 1);
-        perm_s2 = vsetq_lane_u64(0x0d0905010e0a0602UL, perm_s2, 0);
-        perm_s2 = vsetq_lane_u64(0x0f0b07030c080400UL, perm_s2, 1);
-        perm_s3 = vsetq_lane_u64(0x0e0a06020f0b0703UL, perm_s3, 0);
-        perm_s3 = vsetq_lane_u64(0x0c0804000d090501UL, perm_s3, 1);
+        perm[0] = vld1q_u8_x4((uint8_t*)&perm_u64[0]);
+        perm[1] = vld1q_u8_x4((uint8_t*)&perm_u64[8]);
 
         // inverse permutations
-        perm_inv_s0 = vsetq_lane_u64(0x05090d0104080c00UL, perm_inv_s0, 0);
-        perm_inv_s0 = vsetq_lane_u64(0x070b0f03060a0e02UL, perm_inv_s0, 1);
-        perm_inv_s1 = vsetq_lane_u64(0x090d0105080c0004UL, perm_inv_s1, 0);
-        perm_inv_s1 = vsetq_lane_u64(0x0b0f03070a0e0206UL, perm_inv_s1, 1);
-        perm_inv_s2 = vsetq_lane_u64(0x0d0105090c000408UL, perm_inv_s2, 0);
-        perm_inv_s2 = vsetq_lane_u64(0x0f03070b0e02060aUL, perm_inv_s2, 1);
-        perm_inv_s3 = vsetq_lane_u64(0x0105090d0004080cUL, perm_inv_s3, 0);
-        perm_inv_s3 = vsetq_lane_u64(0x03070b0f02060a0eUL, perm_inv_s3, 1);
+        perm_inv[0] = vld1q_u8_x4((uint8_t*)&perm_inv_u64[0]);
+        perm_inv[1] = vld1q_u8_x4((uint8_t*)&perm_inv_u64[8]);
 
         // packing masks
-        pack_mask_0 = vsetq_lane_u64(0x5555555555555555UL, pack_mask_0, 0);
-        pack_mask_0 = vsetq_lane_u64(0x5555555555555555UL, pack_mask_0, 1);
-        pack_mask_1 = vsetq_lane_u64(0x3333333333333333UL, pack_mask_1, 0);
-        pack_mask_1 = vsetq_lane_u64(0x3333333333333333UL, pack_mask_1, 1);
-        pack_mask_2 = vsetq_lane_u64(0x0f0f0f0f0f0f0f0fUL, pack_mask_2, 0);
-        pack_mask_2 = vsetq_lane_u64(0x0f0f0f0f0f0f0f0fUL, pack_mask_2, 1);
+        pack_mask_0 = vdupq_n_u8(0x55);
+        pack_mask_1 = vdupq_n_u8(0x33);
+        pack_mask_2 = vdupq_n_u8(0x0f);
 }
 
-void gift_64_vec_sliced_encrypt(uint64_t c[8], const uint64_t m[8], const uint64_t key[2])
+void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
+                                const uint64_t m[restrict 16],
+                                const uint64_t key[restrict 2])
 {
-        uint8x16x4_t s;
-        s.val[0] = vsetq_lane_u64(m[0], s.val[0], 0);
-        s.val[0] = vsetq_lane_u64(m[1], s.val[0], 1);
-        s.val[1] = vsetq_lane_u64(m[2], s.val[1], 0);
-        s.val[1] = vsetq_lane_u64(m[3], s.val[1], 1);
-        s.val[2] = vsetq_lane_u64(m[4], s.val[2], 0);
-        s.val[2] = vsetq_lane_u64(m[5], s.val[2], 1);
-        s.val[3] = vsetq_lane_u64(m[6], s.val[3], 0);
-        s.val[3] = vsetq_lane_u64(m[7], s.val[3], 1);
+        uint8x16x4_t s[2];
+        s[0] = vld1q_u8_x4((uint8_t*)&m[0]);
+        s[1] = vld1q_u8_x4((uint8_t*)&m[8]);
+        gift_64_vec_sliced_bits_pack(s);
 
-        gift_64_vec_sliced_bits_pack(&s);
-        printf("%lx %lx\n", vgetq_lane_u64(s.val[0], 1), vgetq_lane_u64(s.val[0], 0));
-        printf("%lx %lx\n", vgetq_lane_u64(s.val[1], 1), vgetq_lane_u64(s.val[1], 0));
-        printf("%lx %lx\n", vgetq_lane_u64(s.val[2], 1), vgetq_lane_u64(s.val[2], 0));
-        printf("%lx %lx\n", vgetq_lane_u64(s.val[3], 1), vgetq_lane_u64(s.val[3], 0));
-
-        uint8x16x4_t round_keys[ROUNDS_GIFT_64];
+        uint8x16x4_t round_keys[ROUNDS_GIFT_64][2];
         gift_64_vec_sliced_generate_round_keys(round_keys, key);
 
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
                 gift_64_vec_sliced_subcells(s);
                 gift_64_vec_sliced_permute(s);
 
-                s.val[0] = veorq_u8(s.val[0], round_keys[round].val[0]);
-                s.val[1] = veorq_u8(s.val[1], round_keys[round].val[1]);
-                s.val[2] = veorq_u8(s.val[2], round_keys[round].val[2]);
-                s.val[3] = veorq_u8(s.val[3], round_keys[round].val[3]);
+                s[0].val[0] = veorq_u8(s[0].val[0], round_keys[round][0].val[0]);
+                s[0].val[1] = veorq_u8(s[0].val[1], round_keys[round][0].val[1]);
+                s[0].val[2] = veorq_u8(s[0].val[2], round_keys[round][0].val[2]);
+                s[0].val[3] = veorq_u8(s[0].val[3], round_keys[round][0].val[3]);
+                s[1].val[0] = veorq_u8(s[1].val[0], round_keys[round][1].val[0]);
+                s[1].val[1] = veorq_u8(s[1].val[1], round_keys[round][1].val[1]);
+                s[1].val[2] = veorq_u8(s[1].val[2], round_keys[round][1].val[2]);
+                s[1].val[3] = veorq_u8(s[1].val[3], round_keys[round][1].val[3]);
         }
 
-        c[0] = vgetq_lane_u64(s.val[0], 0);
-        c[1] = vgetq_lane_u64(s.val[0], 1);
-        c[2] = vgetq_lane_u64(s.val[1], 0);
-        c[3] = vgetq_lane_u64(s.val[1], 1);
-        c[4] = vgetq_lane_u64(s.val[2], 0);
-        c[5] = vgetq_lane_u64(s.val[2], 1);
-        c[6] = vgetq_lane_u64(s.val[3], 0);
-        c[7] = vgetq_lane_u64(s.val[3], 1);
+        gift_64_vec_sliced_bits_pack(s);
+        vst1q_u8_x4((uint8_t*)&c[0], s[0]);
+        vst1q_u8_x4((uint8_t*)&c[8], s[1]);
 }
 
-void gift_64_vec_sliced_decrypt(uint64_t m[8], const uint64_t c[8], const uint64_t key[2])
+void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
+                                const uint64_t c[restrict 16],
+                                const uint64_t key[restrict 2])
 {
+        uint8x16x4_t s[2];
+        s[0] = vld1q_u8_x4((uint8_t*)&c[0]);
+        s[1] = vld1q_u8_x4((uint8_t*)&c[8]);
+        gift_64_vec_sliced_bits_pack(s);
 
+        uint8x16x4_t round_keys[ROUNDS_GIFT_64][2];
+        gift_64_vec_sliced_generate_round_keys(round_keys, key);
+
+        for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
+                s[0].val[0] = veorq_u8(s[0].val[0], round_keys[round][0].val[0]);
+                s[0].val[1] = veorq_u8(s[0].val[1], round_keys[round][0].val[1]);
+                s[0].val[2] = veorq_u8(s[0].val[2], round_keys[round][0].val[2]);
+                s[0].val[3] = veorq_u8(s[0].val[3], round_keys[round][0].val[3]);
+                s[1].val[0] = veorq_u8(s[1].val[0], round_keys[round][1].val[0]);
+                s[1].val[1] = veorq_u8(s[1].val[1], round_keys[round][1].val[1]);
+                s[1].val[2] = veorq_u8(s[1].val[2], round_keys[round][1].val[2]);
+                s[1].val[3] = veorq_u8(s[1].val[3], round_keys[round][1].val[3]);
+
+                gift_64_vec_sliced_bits_pack(s);
+                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[0], 1), vgetq_lane_u64(s[0].val[0], 0));
+                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[1], 1), vgetq_lane_u64(s[0].val[1], 0));
+                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[2], 1), vgetq_lane_u64(s[0].val[2], 0));
+                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[3], 1), vgetq_lane_u64(s[0].val[3], 0));
+                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[0], 1), vgetq_lane_u64(s[1].val[0], 0));
+                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[1], 1), vgetq_lane_u64(s[1].val[1], 0));
+                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[2], 1), vgetq_lane_u64(s[1].val[2], 0));
+                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[3], 1), vgetq_lane_u64(s[1].val[3], 0));
+                gift_64_vec_sliced_bits_pack(s);
+
+                gift_64_vec_sliced_permute_inv(s);
+                gift_64_vec_sliced_subcells_inv(s);
+        }
+
+        gift_64_vec_sliced_bits_pack(s);
+        vst1q_u8_x4((uint8_t*)&m[0], s[0]);
+        vst1q_u8_x4((uint8_t*)&m[8], s[1]);
 }

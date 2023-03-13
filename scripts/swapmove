@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+
+def swapmove(a, b, m, n):
+    t = ((a >> n) ^ b) & m
+    return (hex(a ^ (t << n)), hex(b ^ t))
+
+print(swapmove(0x00000000000000001111111111111111,
+               0x00000000000000001111111111111111,
+               0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f,
+               64))
