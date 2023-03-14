@@ -61,19 +61,6 @@ static const int round_constant[] = {
         0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A, 0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
 };
 
-static void print_bytes(const uint8_t b[], const size_t n);
-
-void print_bytes(const uint8_t b[], const size_t n)
-{
-        for (size_t i = 0; i < n; i++) {
-                printf("%01x", b[i] & 0xf);
-                if (i % 4 == 3)
-                        printf(" ");
-        }
-
-        printf("\n");
-}
-
 uint64_t gift_64_subcells(const uint64_t cipher_state)
 {
         uint64_t new_cipher_state = 0UL;
@@ -269,6 +256,7 @@ uint64_t gift_64_decrypt(const uint64_t c, const uint64_t key[2])
         // round loop (in reverse)
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
                 m ^= round_keys[round];
+
                 m = gift_64_permute_inv(m);
                 m = gift_64_subcells_inv(m);
         }

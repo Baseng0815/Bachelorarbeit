@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+def sbox(a, b, c, d):
+    b = b ^ (a & c)
+    t = a ^ (b & d)
+    c = c ^ (t | b)
+    a = d ^ c
+    b = b ^ a
+    a = 0xffffffffffffffff - a
+    c = c ^ (t & b)
+    d = t
+    return (hex(a), hex(b), hex(c), hex(d))
+
+def sbox_inv(a, b, c, d):
+    t = d
+    c = c ^ (t & b);
+    a = 0xffffffffffffffff - a;
+    b = b ^ a;
+    d = a ^ c;
+    c = c ^ (t | b);
+    a = (t ^ (b & d));
+    b = (b ^ (a & c));
+    return (hex(a), hex(b), hex(c), hex(d))
+
+print(sbox_inv(1, 1, 0, 0))

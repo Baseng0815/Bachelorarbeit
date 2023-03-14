@@ -23,7 +23,7 @@ static uint64_t perm_inv_u64[16] = {
         0x1317030712160206UL, 0x1317030712160206UL,
         0x1511050114100400UL, 0x1511050114100400UL,
         0x1713070316120602UL, 0x1713070316120602UL,
-        0x1115010510140004UL, 0x1115010510140004UL,
+        0x1115010510140004UL, 0x1115010510140004UL
 };
 
 static uint8x16x4_t perm[2];
@@ -134,7 +134,7 @@ void gift_64_vec_sliced_subcells_inv(uint8x16x4_t cs[restrict 2])
         cs[1].val[3] = veorq_u8(cs[1].val[0], cs[1].val[2]);
         cs[1].val[2] = veorq_u8(cs[1].val[2], vorrq_u8(t, cs[1].val[1]));
         cs[1].val[0] = veorq_u8(t, vandq_u8(cs[1].val[1], cs[1].val[3]));
-        cs[1].val[1] = veorq_u8(cs[1].val[1], vandq_u8(cs[1].val[1], cs[1].val[2]));
+        cs[1].val[1] = veorq_u8(cs[1].val[1], vandq_u8(cs[1].val[0], cs[1].val[2]));
 }
 
 void gift_64_vec_sliced_permute(uint8x16x4_t cs[restrict 2])
@@ -295,17 +295,6 @@ void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
                 s[1].val[1] = veorq_u8(s[1].val[1], round_keys[round][1].val[1]);
                 s[1].val[2] = veorq_u8(s[1].val[2], round_keys[round][1].val[2]);
                 s[1].val[3] = veorq_u8(s[1].val[3], round_keys[round][1].val[3]);
-
-                gift_64_vec_sliced_bits_pack(s);
-                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[0], 1), vgetq_lane_u64(s[0].val[0], 0));
-                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[1], 1), vgetq_lane_u64(s[0].val[1], 0));
-                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[2], 1), vgetq_lane_u64(s[0].val[2], 0));
-                printf("%lx %lx\n", vgetq_lane_u64(s[0].val[3], 1), vgetq_lane_u64(s[0].val[3], 0));
-                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[0], 1), vgetq_lane_u64(s[1].val[0], 0));
-                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[1], 1), vgetq_lane_u64(s[1].val[1], 0));
-                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[2], 1), vgetq_lane_u64(s[1].val[2], 0));
-                printf("%lx %lx\n", vgetq_lane_u64(s[1].val[3], 1), vgetq_lane_u64(s[1].val[3], 0));
-                gift_64_vec_sliced_bits_pack(s);
 
                 gift_64_vec_sliced_permute_inv(s);
                 gift_64_vec_sliced_subcells_inv(s);
