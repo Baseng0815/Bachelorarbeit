@@ -188,32 +188,46 @@ void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[restrict ROU
                 int u = (key_state[0] >> 16) & 0xffff;
 
                 // add round key (RK=U||V)
-                uint64_t round_key = 0UL;
-                for (size_t i = 0; i < 16; i++) {
-                        int key_bit_v   = (v >> i)  & 0x1;
-                        int key_bit_u   = (u >> i)  & 0x1;
-                        round_key ^= (uint64_t)key_bit_v << (i * 4 + 0);
-                        round_key ^= (uint64_t)key_bit_u << (i * 4 + 1);
+                uint64_t round_key[8] = { 0x0UL };
+                for (size_t i = 0; i < 8; i++) {
+                        int key_bit_v   = (v >> (2 * i + 0)) & 0x1;
+                        int key_bit_u   = (u >> (2 * i + 0)) & 0x1;
+                        round_key[0] ^= (uint64_t)key_bit_v << (i * 8);
+                        round_key[1] ^= (uint64_t)key_bit_u << (i * 8);
+
+                        key_bit_v   = (v >> (2 * i + 1)) & 0x1;
+                        key_bit_u   = (u >> (2 * i + 1)) & 0x1;
+                        round_key[4] ^= (uint64_t)key_bit_v << (i * 8);
+                        round_key[5] ^= (uint64_t)key_bit_u << (i * 8);
                 }
 
                 // add single bit
-                round_key ^= 1UL << 63;
+                round_key[7] ^= 1UL << (7 * 8);
 
                 // add round constants
-                round_key ^= ((round_constant[round] >> 0) & 0x1) << 3;
-                round_key ^= ((round_constant[round] >> 1) & 0x1) << 7;
-                round_key ^= ((round_constant[round] >> 2) & 0x1) << 11;
-                round_key ^= ((round_constant[round] >> 3) & 0x1) << 15;
-                round_key ^= ((round_constant[round] >> 4) & 0x1) << 19;
-                round_key ^= ((round_constant[round] >> 5) & 0x1) << 23;
+                round_key[3] ^= ((round_constant[round] >> 0) & 0x1) << (0 * 8);
+                round_key[7] ^= ((round_constant[round] >> 1) & 0x1) << (0 * 8);
+                round_key[3] ^= ((round_constant[round] >> 2) & 0x1) << (1 * 8);
+                round_key[7] ^= ((round_constant[round] >> 3) & 0x1) << (1 * 8);
+                round_key[3] ^= ((round_constant[round] >> 4) & 0x1) << (2 * 8);
+                round_key[7] ^= ((round_constant[round] >> 5) & 0x1) << (2 * 8);
 
-                round_keys[round][0].val[0] = vdupq_n_u64(round_key);
-                round_keys[round][0].val[1] = round_keys[round][0].val[0];
-                round_keys[round][0].val[2] = round_keys[round][0].val[0];
-                round_keys[round][0].val[3] = round_keys[round][0].val[0];
-                round_keys[round][1] = round_keys[round][0];
+                // extend bits to bytes
+                for (size_t i = 0; i < 8; i++) {
+                        round_key[i] |= round_key[i] << 1;
+                        round_key[i] |= round_key[i] << 2;
+                        round_key[i] |= round_key[i] << 4;
+                }
 
-                gift_64_vec_sliced_bits_pack(round_keys[round]);
+                // load into vector registers (upper and lower part are same)
+                round_keys[round][0].val[0] = vdupq_n_u64(round_key[0]);
+                round_keys[round][0].val[1] = vdupq_n_u64(round_key[1]);
+                round_keys[round][0].val[2] = vdupq_n_u64(round_key[2]);
+                round_keys[round][0].val[3] = vdupq_n_u64(round_key[3]);
+                round_keys[round][1].val[0] = vdupq_n_u64(round_key[4]);
+                round_keys[round][1].val[1] = vdupq_n_u64(round_key[5]);
+                round_keys[round][1].val[2] = vdupq_n_u64(round_key[6]);
+                round_keys[round][1].val[3] = vdupq_n_u64(round_key[7]);
 
                 // update key state
                 int k0 = (key_state[0] >> 0 ) & 0xffffUL;

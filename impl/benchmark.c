@@ -28,7 +28,7 @@ void key_rand(uint64_t k[])
 void m_rand(uint8_t m[], size_t n)
 {
         for (size_t i = 0; i < n; i++) {
-                m[i] = rand() & 0xf;
+                m[i] = rand();
         }
 }
 
@@ -38,7 +38,7 @@ void benchmark_gift_64(void)
         key_rand(key);
 
         uint64_t m;
-        m_rand((uint8_t*)&m, 8);
+        m_rand((uint8_t*)&m, sizeof(m));
 
         uint64_t round_keys[ROUNDS_GIFT_64];
 
@@ -60,7 +60,7 @@ void benchmark_gift_128(void)
         key_rand(key);
 
         uint8_t m[16];
-        m_rand(m, 8);
+        m_rand(m, sizeof(m));
 
         uint8_t c[16];
         uint8_t round_keys[ROUNDS_GIFT_128][32];
@@ -83,7 +83,7 @@ void benchmark_gift_64_sliced(void)
         key_rand(key);
 
         uint8_t m[16];
-        m_rand(m, 8);
+        m_rand(m, sizeof(m));
 
         uint8_t c[16];
         uint8_t round_keys[ROUNDS_GIFT_128][32];
@@ -125,18 +125,46 @@ void benchmark_gift_64_vec_sbox(void)
         MEASURE(gift_64_vec_sbox_encrypt(m_, key), t0, t1);
 }
 
+void benchmark_gift_64_vec_sliced(void)
+{
+        uint64_t key[2];
+        key_rand(key);
+
+        uint64_t m[16];
+        m_rand((uint8_t*)&m, sizeof(m));
+
+        uint64_t c[16];
+        uint8x16x4_t round_keys[ROUNDS_GIFT_128][2];
+        uint8x16x4_t s[2];
+        s[0].val[0] = vdupq_n_u8(0x37);
+        s[0].val[1] = vdupq_n_u8(0x29);
+        s[0].val[2] = vdupq_n_u8(0x6e);
+        s[0].val[3] = vdupq_n_u8(0xcd);
+        s[1].val[0] = vdupq_n_u8(0xbe);
+        s[1].val[1] = vdupq_n_u8(0x81);
+        s[1].val[2] = vdupq_n_u8(0x93);
+        s[1].val[3] = vdupq_n_u8(0x01);
+
+        uint64_t t0, t1;
+        // TODO take into account repeated execution due to cache effects
+        MEASURE(gift_64_vec_sliced_generate_round_keys(round_keys, key), t0, t1);
+        for (int i = 0; i < 5; i++) {
+                MEASURE(gift_64_vec_sliced_subcells(s), t0, t1);
+        }
+        for (int i = 0; i < 5; i++) {
+                MEASURE(gift_64_vec_sliced_permute(s), t0, t1);
+        }
+
+        MEASURE(gift_64_vec_sliced_encrypt(c, m, key), t0, t1);
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
         benchmark_gift_64();
         benchmark_gift_128();
         benchmark_gift_64_vec_sbox();
-
-        uint64_t t0, t1;
-        uint8x16_t v = vdupq_n_u8(31);
-        while (1) {
-                MEASURE(shl(v, 7), t0, t1);
-        }
+        benchmark_gift_64_vec_sliced();
 }
 
 #pragma clang optimize on

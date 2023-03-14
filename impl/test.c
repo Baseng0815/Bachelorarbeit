@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <string.h>
 
@@ -31,7 +32,7 @@ void key_rand(uint64_t k[])
 void m_rand(uint8_t m[], size_t n)
 {
         for (size_t i = 0; i < n; i++) {
-                m[i] = rand() & 0xf;
+                m[i] = rand();
         }
 }
 
@@ -49,8 +50,8 @@ void test_gift_64(void)
         // test encrypt-decrypt
         printf("testing GIFT_64 encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                /* key_rand(key); */
-                /* m_rand((uint8_t*)&m, 8); */
+                key_rand(key);
+                m_rand((uint8_t*)&m, 8);
                 memset(&m, 0, sizeof(m));
 
                 c = gift_64_encrypt(m, key);
@@ -118,7 +119,7 @@ void test_gift_64_sliced(void)
         for (int i = 0; i < 100; i++) {
                 key_rand(key);
                 for (size_t j = 0; j < 8; j++) {
-                        m_rand(&m[j][0], 8);
+                        m_rand(m[j], sizeof(m[j]));
                 }
 
                 gift_64_sliced_encrypt(c, m, key);
@@ -144,7 +145,7 @@ void test_gift_64_table(void)
         printf("testing GIFT_64_TABLE encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
                 key_rand(key);
-                m_rand((uint8_t*)&m, 8);
+                m_rand((uint8_t*)&m, sizeof(m));
 
                 c = gift_64_table_encrypt(m, key);
                 // only encryption for table approach
@@ -170,7 +171,7 @@ void test_gift_64_vec_sbox(void)
         printf("testing GIFT_64_VEC_SBOX encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
                 key_rand(key);
-                m_rand((uint8_t*)&m, 8);
+                m_rand((uint8_t*)&m, sizeof(m));
 
                 c = gift_64_vec_sbox_encrypt(m, key);
                 // only encryption for table approach
@@ -205,8 +206,8 @@ void test_gift_64_vec_sliced(void)
         // test encrypt-decrypt
         printf("testing GIFT_64_VEC_SLICED encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                /* key_rand(key); */
-                /* m_rand((uint8_t*)m, sizeof(m)); */
+                key_rand(key);
+                m_rand((uint8_t*)m, sizeof(m));
                 memset(m, 0, sizeof(m));
 
                 gift_64_vec_sliced_encrypt(c, m, key);
