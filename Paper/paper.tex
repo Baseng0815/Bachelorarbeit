@@ -30,15 +30,17 @@
 }
 
 \lstset{
-    basicstyle=\footnotesize\ttfamily,
+    basicstyle=\scriptsize\ttfamily,
     breaklines=true
 }
 
 \lstset {
+    frame=single,
     numbers=left,
     stepnumber=1,
     firstnumber=1,
-    numberfirstline=true
+    numberfirstline=true,
+    texcl=false
 }
 
 \providecommand{\lxor}{\veebar}
@@ -75,6 +77,8 @@ I hereby declare that ...
 \tableofcontents
 
 \chapter{Introduction}
+\section{Notation}
+
 \section{Block ciphers}
 
 Securing communication channels between different parties has been a long-term
@@ -247,7 +251,7 @@ $16$ KiB.
 For \texttt{GIFT-64}, table construction is relatively straightforward and can
 be done as follows:
 
-\begin{lstlisting}[frame=single, caption={Table construction algorithm}, escapechar=|]
+\begin{lstlisting}[caption={Table construction algorithm}, escapechar=|]
     tables <- [][]
     for sbox_index from 0 to 15 do
         for sbox_input from 0 to 15 do|\label{lst:tablesbox}|
@@ -341,6 +345,8 @@ two inputs to perform a lanewise lookup:
     \item Two or more registers containing data
 \end{enumerate}
 
+
+
 \subsubsection{S-box lookup}
 
 This instruction can be used to implement S-box lookup of all 16 S-boxes in a
@@ -385,6 +391,8 @@ individual S-boxes. This is equivalent to transposing the bit matrix.
         b_{63}b_{59}b_{55}\dots b_3
     \end{bmatrix}
 \]
+
+\subsubsection{Parallel S-Boxes}
 
 This representation offers multiple advantages. We first note that computation
 of the S-box can be executed in parallel, similar to the \texttt{vperm}
@@ -445,8 +453,7 @@ In the case of \texttt{GIFT-64} with $BS=64$ and ARM NEON with $RS=128$, we get
 $n=m=1$ would be a valid choice which yields eight messages divided into four
 registers. We choose $n=m=2$ so we can directly utilize the algorithm for bit
 packing presented by the original GIFT authors, although it is simple to adapt
-this algorithm to only four registers and eight messages by dividing each
-128-bit NEON register into two separate 64-bit registers and adjusting the
+this algorithm to only four registers and eight messages by adjusting the
 \texttt{SWAPMOVE} shift and mask values.
 
 \subsubsection{Packing the data into bitslice format}
@@ -473,6 +480,23 @@ $M$ in using only three XOR-, one AND- and two shift operations.
     &\qquad B=B\oplus T \\
     &\qquad A=A\oplus (T\ll N) \\
 \end{align*}
+
+One caveat of this approach is the fact that NEON registers cannot be shifted
+in their entirety due to the fact bits are not able to cross lanes. This leads
+to the problem of being able to shift at most two lanes of 64 bits at once. We
+thus need to implement the \texttt{shr(V,n)} and \texttt{shl(V,n)} operations
+on our own. This can be done by first extracting the 64-bit lanes $a,b$ out of
+$V=b||a$, shifting the lanes individually and finally shifting and ORing the
+crossing bits back into the other lane.
+
+\begin{alignat*}{2}
+    &\text{shl}(V,n): \\
+    &\qquad a,b&&=V[0],V[1] \\
+    &\qquad c&&=(a\gg (64-n)) \\
+    &\qquad a&&=(a\ll n) \\
+    &\qquad b&&=(b\ll n)\lor c \\
+    &\qquad V[0],V[1]&&=a,b
+\end{alignat*}
 
 The following operations group all $i$th bits of the messages $a,c,\dots,o$
 into bytes and puts these into the lower half of the registers $V_{i\bmod 8}$.
@@ -560,14 +584,421 @@ before the permutation is applied.
     &\texttt{TBL V6, \{V19, V6\}, V9}\qquad &&\texttt{TBL V7, \{V20, V7\}, V10}
 \end{alignat*}
 
+\subsubsection{Round key function}
+
+In contrast to packing and unpacking of data which is only done once in the
+beginning and end, a round key is derived for every round, so the round key
+derivation function needs to be as fast as possible. A simple but naive
+approach for one round would be to generate a single round key, copy it 15
+times and pack the resulting registers similar to how we proceed with the
+messages. Due to the cost of packing the messages, this is prohibitivly
+expensive. Because we know where each byte group ends up after packing, we can
+directly set the round key bits at the correct position. Extending these bits
+to bytes can then be done simply by repeatedly shifting and ORing the registers
+together.
+
+\subsection{Strategies for Camellia}
+
 \chapter{Implementation}
 
-We will provide implementations for the presented strategies in the C
-programming language. Although directly writing Assembler code could result in
-a small performance benefit, this generally increases the work necessary by an
-order of magnitude for only limited results.
+We will provide and discuss implementations for the presented strategies in the
+C programming language. Although directly writing Assembler code could result
+in a small performance benefit, this generally increases the work necessary by
+an order of magnitude for only limited results. This is why we use NEON
+intrinsics.
+
+\subsection{NEON intrinsics}
+
+The header file \texttt{<arm\_neon.h>} provides ARM-specific data and function
+definitions including vector data types and C functions for working with these
+vectors. These functions are known as NEON intrinsics and give the programmer a
+high-level interface to most NEON instructions. Major advantages of this
+approach include the ease of development as the compiler takes over register
+allocation and load/store operations as well as performance benefits through
+compiler optimizations.
+
+Standard vector data types have the format \texttt{uintnxm\_t} with lane width
+$n$ in bits and and lane count $m$. Array types of the format
+\texttt{uintnxmxc\_t}, $c\in\{1,2,3,4\}$ are also defined which are used in
+operations requiring multiple parameters like \texttt{TBL} or pairwise
+load/stores. Intrinsics start with \texttt{v}, optionally contain a \texttt{q}
+after the operation name to indicate operation on a 128-bit register and end
+with the lane data format. Multiplying eight pairs of 16-bit numbers \texttt{a,b} for
+example can be done via the following:
+
+\begin{center}
+    \texttt{uint16x8\_t result = vmulq\_u16(a, b);}
+\end{center}
+
+The compiler allocates vector registers for \texttt{a}, \texttt{b} and
+\texttt{result} and assembles the intrinsic to \texttt{MUL Vr.8H, Va.8H,
+Vb.8H}. Necessary load and stores for the result and parameters are also
+handled automatically.
 
 \chapter{Evaluation}
+
+\chapter{Appendix}
+
+\begin{lstlisting}[language=c, caption={gift\_vec\_sliced.h}]
+#ifndef GIFT_VEC_SLICED_H
+#define GIFT_VEC_SLICED_H
+
+#include <stdint.h>
+#include <arm_neon.h>
+
+#define ROUNDS_GIFT_64 28
+
+// expose for benchmarking
+uint8x16_t shl(uint8x16_t v, int n);
+uint8x16_t shr(uint8x16_t v, int n);
+void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b,
+                                 uint8x16_t m, int n);
+void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2]);
+
+void gift_64_vec_sliced_subcells(uint8x16x4_t cipher_state[restrict 2]);
+void gift_64_vec_sliced_subcells_inv(uint8x16x4_t cipher_state[restrict 2]);
+void gift_64_vec_sliced_permute(uint8x16x4_t cipher_state[restrict 2]);
+void gift_64_vec_sliced_permute_inv(uint8x16x4_t cipher_state[2]);
+void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[restrict ROUNDS_GIFT_64][2],
+                                            const uint64_t key[restrict 2]);
+
+void gift_64_vec_sliced_init(void);
+
+void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
+                                const uint64_t m[restrict 16],
+                                const uint64_t key[restrict 2]);
+void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
+                                const uint64_t c[restrict 16],
+                                const uint64_t key[restrict 2]);
+
+#endif
+\end{lstlisting}
+
+\begin{lstlisting}[language=c, caption={gift\_vec\_sliced.c}]
+#include "gift_vec_sliced.h"
+
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+
+static uint64_t perm_u64[16] = {
+        0x1410050115110400UL, 0x1410050115110400UL,
+        0x0501151104001410UL, 0x0501151104001410UL,
+        0x1511040014100501UL, 0x1511040014100501UL,
+        0x0400141005011511UL, 0x0400141005011511UL,
+        0x1612070317130602UL, 0x1612070317130602UL,
+        0x0703171306021612UL, 0x0703171306021612UL,
+        0x1713060216120703UL, 0x1713060216120703UL,
+        0x0602161207031713UL, 0x0602161207031713UL
+};
+
+static uint64_t perm_inv_u64[16] = {
+        0x1511050114100400UL, 0x1511050114100400UL,
+        0x1713070316120602UL, 0x1713070316120602UL,
+        0x1115010510140004UL, 0x1115010510140004UL,
+        0x1317030712160206UL, 0x1317030712160206UL,
+        0x1317030712160206UL, 0x1317030712160206UL,
+        0x1511050114100400UL, 0x1511050114100400UL,
+        0x1713070316120602UL, 0x1713070316120602UL,
+        0x1115010510140004UL, 0x1115010510140004UL
+};
+
+static uint8x16x4_t perm[2];
+static uint8x16x4_t perm_inv[2];
+
+static uint8x16_t pack_mask_0;
+static uint8x16_t pack_mask_1;
+static uint8x16_t pack_mask_2;
+
+static const int round_constant[] = {
+        // rounds 0-15
+        0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3E, 0x3D, 0x3B,
+        0x37, 0x2F, 0x1E, 0x3C, 0x39, 0x33, 0x27, 0x0E,
+        // rounds 16-31
+        0x1D, 0x3A, 0x35, 0x2B, 0x16, 0x2C, 0x18, 0x30,
+        0x21, 0x02, 0x05, 0x0B, 0x17, 0x2E, 0x1C, 0x38,
+        // rounds 32-47
+        0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A,
+        0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
+};
+
+uint8x16_t shl(uint8x16_t v, int n)
+{
+        // TODO check out vst
+        uint64_t l0 = vgetq_lane_u64(v, 0);
+        uint64_t l1 = vgetq_lane_u64(v, 1);
+        l1 = l1 << n | (l0 >> (64 - n));
+        l0 <<= n;
+        uint8x16_t ret;
+        ret = vsetq_lane_u64(l0, ret, 0);
+        ret = vsetq_lane_u64(l1, ret, 1);
+        return ret;
+}
+
+uint8x16_t shr(uint8x16_t v, int n)
+{
+        uint64_t l0 = vgetq_lane_u64(v, 0);
+        uint64_t l1 = vgetq_lane_u64(v, 1);
+        l0 = l0 >> n | (((l1 << (64 - n)) >> (64 - n)) << (64 - n));
+        l1 >>= n;
+        uint8x16_t ret;
+        ret = vsetq_lane_u64(l0, ret, 0);
+        ret = vsetq_lane_u64(l1, ret, 1);
+        return ret;
+}
+
+void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b, uint8x16_t m, int n)
+{
+
+        uint8x16_t t = vandq_u8(veorq_u8(shr(*a, n), *b), m);
+        *b = veorq_u8(*b, t);
+        *a = veorq_u8(*a, shl(t, n));
+}
+
+void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2])
+{
+        // take care not to shift mask bits out of the register
+        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[0].val[3], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(&m[1].val[2], &m[1].val[3], pack_mask_0, 1);
+
+        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[0].val[3], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(&m[1].val[1], &m[1].val[3], pack_mask_1, 2);
+
+        // make bytes (a0 b0 c0 d0 a4 b4 c4 d4 -> a0 b0 c0 d0 e0 f0 g0 h0)
+        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[1].val[0], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[1].val[2], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[1].val[1], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(&m[0].val[3], &m[1].val[3], pack_mask_2, 4);
+}
+
+void gift_64_vec_sliced_subcells(uint8x16x4_t cs[restrict 2])
+{
+        cs[0].val[1] = veorq_u8(cs[0].val[1], vandq_u8(cs[0].val[0], cs[0].val[2]));
+        uint8x16_t t = veorq_u8(cs[0].val[0], vandq_u8(cs[0].val[1], cs[0].val[3]));
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vorrq_u8(t, cs[0].val[1]));
+        cs[0].val[0] = veorq_u8(cs[0].val[3], cs[0].val[2]);
+        cs[0].val[1] = veorq_u8(cs[0].val[1], cs[0].val[0]);
+        cs[0].val[0] = vmvnq_u8(cs[0].val[0]);
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vandq_u8(t, cs[0].val[1]));
+        cs[0].val[3] = t;
+
+        cs[1].val[1] = veorq_u8(cs[1].val[1], vandq_u8(cs[1].val[0], cs[1].val[2]));
+        t            = veorq_u8(cs[1].val[0], vandq_u8(cs[1].val[1], cs[1].val[3]));
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vorrq_u8(t, cs[1].val[1]));
+        cs[1].val[0] = veorq_u8(cs[1].val[3], cs[1].val[2]);
+        cs[1].val[1] = veorq_u8(cs[1].val[1], cs[1].val[0]);
+        cs[1].val[0] = vmvnq_u8(cs[1].val[0]);
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vandq_u8(t, cs[1].val[1]));
+        cs[1].val[3] = t;
+}
+
+void gift_64_vec_sliced_subcells_inv(uint8x16x4_t cs[restrict 2])
+{
+        uint8x16_t t = cs[0].val[3];
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vandq_u8(t, cs[0].val[1]));
+        cs[0].val[0] = vmvnq_u8(cs[0].val[0]);
+        cs[0].val[1] = veorq_u8(cs[0].val[1], cs[0].val[0]);
+        cs[0].val[3] = veorq_u8(cs[0].val[0], cs[0].val[2]);
+        cs[0].val[2] = veorq_u8(cs[0].val[2], vorrq_u8(t, cs[0].val[1]));
+        cs[0].val[0] = veorq_u8(t, vandq_u8(cs[0].val[1], cs[0].val[3]));
+        cs[0].val[1] = veorq_u8(cs[0].val[1], vandq_u8(cs[0].val[0], cs[0].val[2]));
+
+        t            = cs[1].val[3];
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vandq_u8(t, cs[1].val[1]));
+        cs[1].val[0] = vmvnq_u8(cs[1].val[0]);
+        cs[1].val[1] = veorq_u8(cs[1].val[1], cs[1].val[0]);
+        cs[1].val[3] = veorq_u8(cs[1].val[0], cs[1].val[2]);
+        cs[1].val[2] = veorq_u8(cs[1].val[2], vorrq_u8(t, cs[1].val[1]));
+        cs[1].val[0] = veorq_u8(t, vandq_u8(cs[1].val[1], cs[1].val[3]));
+        cs[1].val[1] = veorq_u8(cs[1].val[1], vandq_u8(cs[1].val[0], cs[1].val[2]));
+}
+
+void gift_64_vec_sliced_permute(uint8x16x4_t cs[restrict 2])
+{
+        uint8x16x2_t pairs[4] = {
+                { .val = { cs[0].val[0], cs[1].val[0] }},
+                { .val = { cs[0].val[1], cs[1].val[1] }},
+                { .val = { cs[0].val[2], cs[1].val[2] }},
+                { .val = { cs[0].val[3], cs[1].val[3] }},
+        };
+
+        cs[0].val[0] = vqtbl2q_u8(pairs[0], perm[0].val[0]);
+        cs[0].val[1] = vqtbl2q_u8(pairs[1], perm[0].val[1]);
+        cs[0].val[2] = vqtbl2q_u8(pairs[2], perm[0].val[2]);
+        cs[0].val[3] = vqtbl2q_u8(pairs[3], perm[0].val[3]);
+
+        cs[1].val[0] = vqtbl2q_u8(pairs[0], perm[1].val[0]);
+        cs[1].val[1] = vqtbl2q_u8(pairs[1], perm[1].val[1]);
+        cs[1].val[2] = vqtbl2q_u8(pairs[2], perm[1].val[2]);
+        cs[1].val[3] = vqtbl2q_u8(pairs[3], perm[1].val[3]);
+}
+
+void gift_64_vec_sliced_permute_inv(uint8x16x4_t cs[restrict 2])
+{
+        uint8x16x2_t pairs[4] = {
+                { .val = { cs[0].val[0], cs[1].val[0] }},
+                { .val = { cs[0].val[1], cs[1].val[1] }},
+                { .val = { cs[0].val[2], cs[1].val[2] }},
+                { .val = { cs[0].val[3], cs[1].val[3] }},
+        };
+
+        cs[0].val[0] = vqtbl2q_u8(pairs[0], perm_inv[0].val[0]);
+        cs[0].val[1] = vqtbl2q_u8(pairs[1], perm_inv[0].val[1]);
+        cs[0].val[2] = vqtbl2q_u8(pairs[2], perm_inv[0].val[2]);
+        cs[0].val[3] = vqtbl2q_u8(pairs[3], perm_inv[0].val[3]);
+
+        cs[1].val[0] = vqtbl2q_u8(pairs[0], perm_inv[1].val[0]);
+        cs[1].val[1] = vqtbl2q_u8(pairs[1], perm_inv[1].val[1]);
+        cs[1].val[2] = vqtbl2q_u8(pairs[2], perm_inv[1].val[2]);
+        cs[1].val[3] = vqtbl2q_u8(pairs[3], perm_inv[1].val[3]);
+}
+
+void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[restrict ROUNDS_GIFT_64][2],
+                                            const uint64_t key[restrict 2])
+{
+        // TODO shift-and-or
+
+        uint64_t key_state[] = {key[0], key[1]};
+        for (int round = 0; round < ROUNDS_GIFT_64; round++) {
+                int v = (key_state[0] >> 0 ) & 0xffff;
+                int u = (key_state[0] >> 16) & 0xffff;
+
+                // add round key (RK=U||V)
+                uint64_t round_key[8] = { 0x0UL };
+                for (size_t i = 0; i < 8; i++) {
+                        int key_bit_v   = (v >> (2 * i + 0)) & 0x1;
+                        int key_bit_u   = (u >> (2 * i + 0)) & 0x1;
+                        round_key[0] ^= (uint64_t)key_bit_v << (i * 8);
+                        round_key[1] ^= (uint64_t)key_bit_u << (i * 8);
+
+                        key_bit_v   = (v >> (2 * i + 1)) & 0x1;
+                        key_bit_u   = (u >> (2 * i + 1)) & 0x1;
+                        round_key[4] ^= (uint64_t)key_bit_v << (i * 8);
+                        round_key[5] ^= (uint64_t)key_bit_u << (i * 8);
+                }
+
+                // add single bit
+                round_key[7] ^= 1UL << (7 * 8);
+
+                // add round constants
+                round_key[3] ^= ((round_constant[round] >> 0) & 0x1) << (0 * 8);
+                round_key[7] ^= ((round_constant[round] >> 1) & 0x1) << (0 * 8);
+                round_key[3] ^= ((round_constant[round] >> 2) & 0x1) << (1 * 8);
+                round_key[7] ^= ((round_constant[round] >> 3) & 0x1) << (1 * 8);
+                round_key[3] ^= ((round_constant[round] >> 4) & 0x1) << (2 * 8);
+                round_key[7] ^= ((round_constant[round] >> 5) & 0x1) << (2 * 8);
+
+                // extend bits to bytes
+                for (size_t i = 0; i < 8; i++) {
+                        round_key[i] |= round_key[i] << 1;
+                        round_key[i] |= round_key[i] << 2;
+                        round_key[i] |= round_key[i] << 4;
+                }
+
+                // load into vector registers (upper and lower part are same)
+                round_keys[round][0].val[0] = vdupq_n_u64(round_key[0]);
+                round_keys[round][0].val[1] = vdupq_n_u64(round_key[1]);
+                round_keys[round][0].val[2] = vdupq_n_u64(round_key[2]);
+                round_keys[round][0].val[3] = vdupq_n_u64(round_key[3]);
+                round_keys[round][1].val[0] = vdupq_n_u64(round_key[4]);
+                round_keys[round][1].val[1] = vdupq_n_u64(round_key[5]);
+                round_keys[round][1].val[2] = vdupq_n_u64(round_key[6]);
+                round_keys[round][1].val[3] = vdupq_n_u64(round_key[7]);
+
+                // update key state
+                int k0 = (key_state[0] >> 0 ) & 0xffffUL;
+                int k1 = (key_state[0] >> 16) & 0xffffUL;
+                k0 = (k0 >> 12) | ((k0 & 0xfff) << 4);
+                k1 = (k1 >> 2 ) | ((k1 & 0x3  ) << 14);
+                key_state[0] >>= 32;
+                key_state[0] |= (key_state[1] & 0xffffffffUL) << 32;
+                key_state[1] >>= 32;
+                key_state[1] |= ((uint64_t)k0 << 32) | ((uint64_t)k1 << 48);
+        }
+}
+
+void gift_64_vec_sliced_init(void)
+{
+        // permutations
+        perm[0] = vld1q_u8_x4((uint8_t*)&perm_u64[0]);
+        perm[1] = vld1q_u8_x4((uint8_t*)&perm_u64[8]);
+
+        // inverse permutations
+        perm_inv[0] = vld1q_u8_x4((uint8_t*)&perm_inv_u64[0]);
+        perm_inv[1] = vld1q_u8_x4((uint8_t*)&perm_inv_u64[8]);
+
+        // packing masks
+        pack_mask_0 = vdupq_n_u8(0x55);
+        pack_mask_1 = vdupq_n_u8(0x33);
+        pack_mask_2 = vdupq_n_u8(0x0f);
+}
+
+void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
+                                const uint64_t m[restrict 16],
+                                const uint64_t key[restrict 2])
+{
+        uint8x16x4_t s[2];
+        s[0] = vld1q_u8_x4((uint8_t*)&m[0]);
+        s[1] = vld1q_u8_x4((uint8_t*)&m[8]);
+        gift_64_vec_sliced_bits_pack(s);
+
+        uint8x16x4_t round_keys[ROUNDS_GIFT_64][2];
+        gift_64_vec_sliced_generate_round_keys(round_keys, key);
+
+        for (int round = 0; round < ROUNDS_GIFT_64; round++) {
+                gift_64_vec_sliced_subcells(s);
+                gift_64_vec_sliced_permute(s);
+
+                s[0].val[0] = veorq_u8(s[0].val[0], round_keys[round][0].val[0]);
+                s[0].val[1] = veorq_u8(s[0].val[1], round_keys[round][0].val[1]);
+                s[0].val[2] = veorq_u8(s[0].val[2], round_keys[round][0].val[2]);
+                s[0].val[3] = veorq_u8(s[0].val[3], round_keys[round][0].val[3]);
+                s[1].val[0] = veorq_u8(s[1].val[0], round_keys[round][1].val[0]);
+                s[1].val[1] = veorq_u8(s[1].val[1], round_keys[round][1].val[1]);
+                s[1].val[2] = veorq_u8(s[1].val[2], round_keys[round][1].val[2]);
+                s[1].val[3] = veorq_u8(s[1].val[3], round_keys[round][1].val[3]);
+        }
+
+        gift_64_vec_sliced_bits_pack(s);
+        vst1q_u8_x4((uint8_t*)&c[0], s[0]);
+        vst1q_u8_x4((uint8_t*)&c[8], s[1]);
+}
+
+void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
+                                const uint64_t c[restrict 16],
+                                const uint64_t key[restrict 2])
+{
+        uint8x16x4_t s[2];
+        s[0] = vld1q_u8_x4((uint8_t*)&c[0]);
+        s[1] = vld1q_u8_x4((uint8_t*)&c[8]);
+        gift_64_vec_sliced_bits_pack(s);
+
+        uint8x16x4_t round_keys[ROUNDS_GIFT_64][2];
+        gift_64_vec_sliced_generate_round_keys(round_keys, key);
+
+        for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
+                s[0].val[0] = veorq_u8(s[0].val[0], round_keys[round][0].val[0]);
+                s[0].val[1] = veorq_u8(s[0].val[1], round_keys[round][0].val[1]);
+                s[0].val[2] = veorq_u8(s[0].val[2], round_keys[round][0].val[2]);
+                s[0].val[3] = veorq_u8(s[0].val[3], round_keys[round][0].val[3]);
+                s[1].val[0] = veorq_u8(s[1].val[0], round_keys[round][1].val[0]);
+                s[1].val[1] = veorq_u8(s[1].val[1], round_keys[round][1].val[1]);
+                s[1].val[2] = veorq_u8(s[1].val[2], round_keys[round][1].val[2]);
+                s[1].val[3] = veorq_u8(s[1].val[3], round_keys[round][1].val[3]);
+
+                gift_64_vec_sliced_permute_inv(s);
+                gift_64_vec_sliced_subcells_inv(s);
+        }
+
+        gift_64_vec_sliced_bits_pack(s);
+        vst1q_u8_x4((uint8_t*)&m[0], s[0]);
+        vst1q_u8_x4((uint8_t*)&m[8], s[1]);
+}
+\end{lstlisting}
 
 \chapter*{Acknowledgements}
 
