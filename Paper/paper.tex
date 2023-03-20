@@ -113,7 +113,7 @@ for different tradeoffs and security concerns.
 
 \texttt{GIFT}\cite{gift:2017}, first presented in the \textit{CHES 2017}
 cryptographic hardware and embedded systems conference, is a lightweight block
-cipher based on a previous design called \texttt|PRESENT|, developed in 2007. Its
+cipher based on a previous design called \texttt{PRESENT}, developed in 2007. Its
 goal is to offer maximum security while being extremely light on resources.
 Modern battery-powered devices like RFID tags or low-latency operations like
 on-the-fly disc encryption present strong hardware and power constraints. GIFT
@@ -427,8 +427,8 @@ This approach requires $47$ operations, meaning all four permutations require
 over $150$ operations which would present a major bottleneck to the round
 function. We can improve on this by working on multiple message blocks at once
 and using the aforementioned \texttt{vperm} instruction to implement the bit
-shuffling. We then need only four \texttt{TBL} instructions for the complete
-diffusion layer.
+shuffling. We then need only four instructions for the complete diffusion
+layer.
 
 \subsubsection{Using \texttt{vperm} for slice permutation}
 
@@ -515,34 +515,27 @@ With $Ax=o_xm_xk_xj_xg_xe_xc_xa_x$ and $Bx=p_xn_xl_xi_xh_xf_xd_xb_x$ denoting
 byte groups, our data now has the following permutation-friendly format:
 
 \[
-    \begin{array}{c|llllllll}
-        n & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+    \scriptsize
+    \begin{array}{c|llllllll|llllllll}
+        n & 15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
         \hline
-        V_0 & A56 & A48 & A40 & A32 & A24 & A16 & A8 & A0 \\
-        V_1 & A57 & A49 & A41 & A33 & A25 & A17 & A9 & A1 \\
-        V_2 & A58 & A50 & A42 & A34 & A26 & A18 & A10 & A2 \\
-        V_3 & A59 & A51 & A43 & A35 & A27 & A19 & A11 & A3 \\
-        V_4 & A60 & A52 & A44 & A36 & A28 & A20 & A12 & A4 \\
-        V_5 & A61 & A53 & A45 & A37 & A29 & A21 & A13 & A5 \\
-        V_6 & A62 & A54 & A46 & A38 & A30 & A22 & A14 & A6 \\
-        V_7 & A63 & A55 & A47 & A39 & A31 & A23 & A15 & A7
+        V_0 & B56 & B48 & B40 & B32 & B24 & B16 & B8 & B0 & A56 & A48 & A40 & A32 & A24 & A16 & A8 & A0 \\
+        V_1 & B57 & B49 & B41 & B33 & B25 & B17 & B9 & B1 & A57 & A49 & A41 & A33 & A25 & A17 & A9 & A1 \\
+        V_2 & B58 & B50 & B42 & B34 & B26 & B18 & B10 & B2 & A58 & A50 & A42 & A34 & A26 & A18 & A10 & A2 \\
+        V_3 & B59 & B51 & B43 & B35 & B27 & B19 & B11 & B3 & A59 & A51 & A43 & A35 & A27 & A19 & A11 & A3 \\
+        V_4 & B60 & B52 & B44 & B36 & B28 & B20 & B12 & B4 & A60 & A52 & A44 & A36 & A28 & A20 & A12 & A4 \\
+        V_5 & B61 & B53 & B45 & B37 & B29 & B21 & B13 & B5 & A61 & A53 & A45 & A37 & A29 & A21 & A13 & A5 \\
+        V_6 & B62 & B54 & B46 & B38 & B30 & B22 & B14 & B6 & A62 & A54 & A46 & A38 & A30 & A22 & A14 & A6 \\
+        V_7 & B63 & B55 & B47 & B39 & B31 & B23 & B15 & B7  & A63 & A55 & A47 & A39 & A31 & A23 & A15 & A7
     \end{array}
 \]
 
-\[
-    \begin{array}{c|llllllll}
-        n & 15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 \\
-        \hline
-        V_0 & B56 & B48 & B40 & B32 & B24 & B16 & B8 & B0 \\
-        V_1 & B57 & B49 & B41 & B33 & B25 & B17 & B9 & B1 \\
-        V_2 & B58 & B50 & B42 & B34 & B26 & B18 & B10 & B2 \\
-        V_3 & B59 & B51 & B43 & B35 & B27 & B19 & B11 & B3 \\
-        V_4 & B60 & B52 & B44 & B36 & B28 & B20 & B12 & B4 \\
-        V_5 & B61 & B53 & B45 & B37 & B29 & B21 & B13 & B5 \\
-        V_6 & B62 & B54 & B46 & B38 & B30 & B22 & B14 & B6 \\
-        V_7 & B63 & B55 & B47 & B39 & B31 & B23 & B15 & B7
-    \end{array}
-\]
+Although this would already work, we prefer to have only bits of the same
+messages in each register - otherwise the permutation would need to operate on
+two source registers with the added requirement of storing the pre-permutation
+values for the first four registers, slowing down the round function through
+superfluous load/stores. This transformation is trivial by use of
+\texttt{TBL} with two data source operands.
 
 We can now create permutation tables using the specification of the individual
 slice permutations $P_i$:
@@ -558,29 +551,21 @@ slice permutations $P_i$:
     \end{array}
 \]
 
-One thing to take note of is the original permutation values only showing where
-a given byte should land, not which byte belongs to a certain position - i.e.
-for $P_0$, byte 1 should land in position 12, but the byte belonging to
-position 1 is byte 4. Because \texttt{vperm} works in the latter way, we have
-to do some trivial rearrangements. In addition, because data for each slice is
-split between two registers $(V_0,V_4),(V_1,V_5),\dots$, the \texttt{vperm}
-operation needs to use these two registers as a data source. Using two data
-sources is supported by the \texttt{TBL} instruction by means of an additional
-parameter.
+Another thing to take note of is the original permutation values only showing
+where a given byte should land, not which byte belongs to a certain position -
+i.e. for $P_0$, byte 1 should land in position 12, but the byte belonging to
+position 1 is byte 4. Because \texttt{TBL} works in the latter way, we have
+to do some trivial rearrangements.
 
 Assuming the correct permutation values are put into registers
-$V_9,V_{10},\dots,V_{16}$, this now allows us to compute the permutation layer for
-all 16 blocks in only eight permutation instructions plus four additional vector
-copy instructions used for saving the original values of $V_0,V_1,V_2,V_3$
-before the permutation is applied.
+$V_8,V_{10},\dots,V_{15}$, this now allows us to compute the permutation layer
+for all 16 blocks in only eight permutation instructions.
 
 \begin{alignat*}{2}
-    &\texttt{MOV V17, V0}\qquad &&\texttt{MOV V18, V1} \\
-    &\texttt{MOV V19, V2}\qquad &&\texttt{MOV V20, V3} \\
-    &\texttt{TBL V0, \{V0, V4\}, V9}\qquad &&\texttt{TBL V1, \{V1, V5\}, V10} \\
-    &\texttt{TBL V2, \{V2, V6\}, V9}\qquad &&\texttt{TBL V3, \{V3, V7\}, V10} \\
-    &\texttt{TBL V4, \{V17, V4\}, V9}\qquad &&\texttt{TBL V5, \{V18, V5\}, V10} \\
-    &\texttt{TBL V6, \{V19, V6\}, V9}\qquad &&\texttt{TBL V7, \{V20, V7\}, V10}
+    &\texttt{TBL V0, V0, V8}\qquad &&\texttt{TBL V1, V1, V9} \\
+    &\texttt{TBL V2, V2, V10}\qquad &&\texttt{TBL V3, V3, V11} \\
+    &\texttt{TBL V4, V4, V12}\qquad &&\texttt{TBL V5, V5, V13} \\
+    &\texttt{TBL V6, V6, V14}\qquad &&\texttt{TBL V7, V7, V15}
 \end{alignat*}
 
 \subsubsection{Round key function}

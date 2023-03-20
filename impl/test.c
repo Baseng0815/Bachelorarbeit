@@ -184,6 +184,14 @@ void test_gift_64_vec_sliced(void)
 {
         gift_64_vec_sliced_init();
 
+        printf("testing GIFT_64_VEC_SLICED substitution...\n");
+        uint8x16x4_t s[2];
+        s[0].val[0] = vdupq_n_u64(0x0123456789abcdefUL);
+        gift_64_vec_sliced_bits_pack(s);
+        gift_64_vec_sliced_subcells(s);
+        gift_64_vec_sliced_bits_unpack(s);
+        ASSERT_EQUALS(vgetq_lane_u64(s[0].val[0], 0), 0x1a4c6f392db7508e);
+
         // test encrypt to known value
         printf("testing GIFT_64_VEC_SLICED encrytion to known value...\n");
         uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };

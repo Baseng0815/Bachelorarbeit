@@ -11,6 +11,7 @@ uint8x16_t shl(uint8x16_t v, int n);
 uint8x16_t shr(uint8x16_t v, int n);
 void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b, uint8x16_t m, int n);
 void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2]);
+void gift_64_vec_sliced_bits_unpack(uint8x16x4_t m[restrict 2]);
 
 void gift_64_vec_sliced_subcells(uint8x16x4_t cipher_state[restrict 2]);
 void gift_64_vec_sliced_subcells_inv(uint8x16x4_t cipher_state[restrict 2]);
