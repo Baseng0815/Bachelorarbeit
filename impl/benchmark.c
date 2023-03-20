@@ -19,13 +19,7 @@
         asm volatile("mrs %[c], PMCCNTR_EL0" : [c] "=r"(t1));\
         printf(#code ": took %ld cycles\n", t1 - t0);
 
-void key_rand(uint64_t k[])
-{
-        k[0] = rand();
-        k[1] = rand();
-}
-
-void m_rand(uint8_t m[], size_t n)
+void rand_bytes(uint8_t m[], size_t n)
 {
         for (size_t i = 0; i < n; i++) {
                 m[i] = rand();
@@ -35,10 +29,10 @@ void m_rand(uint8_t m[], size_t n)
 void benchmark_gift_64(void)
 {
         uint64_t key[2];
-        key_rand(key);
+        rand_bytes((uint8_t*)key, sizeof(key));
 
         uint64_t m;
-        m_rand((uint8_t*)&m, sizeof(m));
+        rand_bytes((uint8_t*)&m, sizeof(m));
 
         uint64_t round_keys[ROUNDS_GIFT_64];
 
@@ -57,10 +51,10 @@ void benchmark_gift_64(void)
 void benchmark_gift_128(void)
 {
         uint64_t key[2];
-        key_rand(key);
+        rand_bytes((uint8_t*)key, sizeof(key));
 
         uint8_t m[16];
-        m_rand(m, sizeof(m));
+        rand_bytes(m, sizeof(m));
 
         uint8_t c[16];
         uint8_t round_keys[ROUNDS_GIFT_128][32];
@@ -80,10 +74,10 @@ void benchmark_gift_128(void)
 void benchmark_gift_64_sliced(void)
 {
         uint64_t key[2];
-        key_rand(key);
+        rand_bytes((uint8_t*)key, sizeof(key));
 
         uint8_t m[16];
-        m_rand(m, sizeof(m));
+        rand_bytes(m, sizeof(m));
 
         uint8_t c[16];
         uint8_t round_keys[ROUNDS_GIFT_128][32];
@@ -99,7 +93,7 @@ void benchmark_gift_64_sliced(void)
 void benchmark_gift_64_vec_sbox(void)
 {
         uint64_t key[2];
-        key_rand(key);
+        rand_bytes((uint8_t*)key, sizeof(key));
         gift_64_vec_sbox_init();
 
         uint8x16_t m;
@@ -121,17 +115,17 @@ void benchmark_gift_64_vec_sbox(void)
         }
 
         uint64_t m_;
-        m_rand((uint8_t*)&m_, sizeof(m_));
+        rand_bytes((uint8_t*)&m_, sizeof(m_));
         MEASURE(gift_64_vec_sbox_encrypt(m_, key), t0, t1);
 }
 
 void benchmark_gift_64_vec_sliced(void)
 {
         uint64_t key[2];
-        key_rand(key);
+        rand_bytes((uint8_t*)&key, sizeof(key));
 
         uint64_t m[16];
-        m_rand((uint8_t*)&m, sizeof(m));
+        rand_bytes((uint8_t*)&m, sizeof(m));
 
         uint64_t c[16];
         uint8x16x4_t round_keys[ROUNDS_GIFT_128][2];
@@ -155,7 +149,11 @@ void benchmark_gift_64_vec_sliced(void)
                 MEASURE(gift_64_vec_sliced_permute(s), t0, t1);
         }
 
-        MEASURE(gift_64_vec_sliced_encrypt(c, m, key), t0, t1);
+        /* while (1) { */
+                rand_bytes((uint8_t*)&m, sizeof(m));
+                rand_bytes((uint8_t*)&key, sizeof(key));
+                MEASURE(gift_64_vec_sliced_encrypt(c, m, key), t0, t1);
+        /* } */
 }
 
 int main(int argc, char *argv[])

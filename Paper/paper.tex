@@ -7,6 +7,7 @@
 \usepackage{ulem} % underline
 \usepackage{float} % H float specifier
 \usepackage{hyperref} % hyperlinks
+\usepackage{tabularx} % tabular with column specifier X to break lines
 % \usepackage{hyphenat}
 \usepackage{bookmark}
 \usepackage{systeme} % systems of equation
@@ -345,8 +346,6 @@ two inputs to perform a lanewise lookup:
     \item Two or more registers containing data
 \end{enumerate}
 
-
-
 \subsubsection{S-box lookup}
 
 This instruction can be used to implement S-box lookup of all 16 S-boxes in a
@@ -619,21 +618,56 @@ compiler optimizations.
 
 Standard vector data types have the format \texttt{uintnxm\_t} with lane width
 $n$ in bits and and lane count $m$. Array types of the format
-\texttt{uintnxmxc\_t}, $c\in\{1,2,3,4\}$ are also defined which are used in
+\texttt{uintnxmxc\_t}, $c\in\{2,3,4\}$ are also defined which are used in
 operations requiring multiple parameters like \texttt{TBL} or pairwise
 load/stores. Intrinsics start with \texttt{v}, optionally contain a \texttt{q}
-after the operation name to indicate operation on a 128-bit register and end
-with the lane data format. Multiplying eight pairs of 16-bit numbers \texttt{a,b} for
-example can be done via the following:
+after the operation name to indicate operation on a 128-bit register, and end
+with the lane data format. Multiplying eight pairs of 16-bit numbers
+\texttt{a,b} for example can be done via the following:
 
 \begin{center}
     \texttt{uint16x8\_t result = vmulq\_u16(a, b);}
 \end{center}
 
-The compiler allocates vector registers for \texttt{a}, \texttt{b} and
-\texttt{result} and assembles the intrinsic to \texttt{MUL Vr.8H, Va.8H,
-Vb.8H}. Necessary load and stores for the result and parameters are also
-handled automatically.
+In this case, the compiler allocates vector registers for \texttt{a},
+\texttt{b} and \texttt{result} and assembles the intrinsic to \texttt{MUL
+Vr.8H, Va.8H, Vb.8H}. Necessary load and stores for the result and parameters
+are also handled automatically. Of special interest to us are the following
+intrinsics, each existing in different variants with different lane widths and
+also array types: \\
+
+\begin{table}[h!]
+    \centering
+    \footnotesize
+    \begin{tabularx}{\textwidth}{ll|X}
+        Intrinsic && Description \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vreinterpretq\_u8\_u64(uint64x2\_t)} & Explicit casting \\
+        \hline
+        \texttt{uint64\_t} & \texttt{vgetq\_lane\_u64(void)} & Extract a single lane \\
+        \hline
+        \texttt{void} & \texttt{vsetq\_lane\_u64(uint64\_t)} & Insert a single lane \\
+        \hline
+        \texttt{uint64x2\_t} & \texttt{vdupq\_n\_u64(uint64\_t)} & Initialize all lanes to same value \\
+        \hline
+        \texttt{void} & \texttt{vst1q\_u64(uint64\_t*, uint64x2\_t)} & Store from register to memory \\
+        \hline
+        \texttt{uint64x2\_t} & \texttt{vld1q\_u64(uint64\_t*, uint64x2\_t)} & Load from memory to register \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{veorq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise XOR \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vandq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise AND \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vorrq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise OR \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vmvnq\_u8(uint8x16\_t)} & bitwise NOT \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vqtbl2q\_u8(uint8x16\_t, uint8x16\_t)} & permutation (\texttt{TBL}) \\
+    \end{tabularx}
+\end{table}
+
+The implementations closely follow the aforementioned strategies;
+instruction-level optimization is left to the compiler.
 
 \chapter{Evaluation}
 
@@ -724,27 +758,20 @@ static const int round_constant[] = {
 
 uint8x16_t shl(uint8x16_t v, int n)
 {
-        // TODO check out vst
-        uint64_t l0 = vgetq_lane_u64(v, 0);
-        uint64_t l1 = vgetq_lane_u64(v, 1);
-        l1 = l1 << n | (l0 >> (64 - n));
-        l0 <<= n;
-        uint8x16_t ret;
-        ret = vsetq_lane_u64(l0, ret, 0);
-        ret = vsetq_lane_u64(l1, ret, 1);
-        return ret;
+        uint64_t l[2];
+        vst1q_u64(l, v);
+        l[1] = l[1] << n | (l[0] >> (64 - n));
+        l[1] <<= n;
+        return vreinterpretq_u8_u64(vld1q_u64(l));
 }
 
 uint8x16_t shr(uint8x16_t v, int n)
 {
-        uint64_t l0 = vgetq_lane_u64(v, 0);
-        uint64_t l1 = vgetq_lane_u64(v, 1);
-        l0 = l0 >> n | (((l1 << (64 - n)) >> (64 - n)) << (64 - n));
-        l1 >>= n;
-        uint8x16_t ret;
-        ret = vsetq_lane_u64(l0, ret, 0);
-        ret = vsetq_lane_u64(l1, ret, 1);
-        return ret;
+        uint64_t l[2];
+        vst1q_u64(l, v);
+        l[0] = l[0] >> n | (((l[1] << (64 - n)) >> (64 - n)) << (64 - n));
+        l[1] >>= n;
+        return vreinterpretq_u8_u64(vld1q_u64(l));
 }
 
 void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b, uint8x16_t m, int n)

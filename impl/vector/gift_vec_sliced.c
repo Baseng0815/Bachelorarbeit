@@ -44,27 +44,20 @@ static const int round_constant[] = {
 
 uint8x16_t shl(uint8x16_t v, int n)
 {
-        // TODO check out vst
-        uint64_t l0 = vgetq_lane_u64(v, 0);
-        uint64_t l1 = vgetq_lane_u64(v, 1);
-        l1 = l1 << n | (l0 >> (64 - n));
-        l0 <<= n;
-        uint8x16_t ret;
-        ret = vsetq_lane_u64(l0, ret, 0);
-        ret = vsetq_lane_u64(l1, ret, 1);
-        return ret;
+        uint64_t l[2];
+        vst1q_u64(l, v);
+        l[1] = l[1] << n | (l[0] >> (64 - n));
+        l[1] <<= n;
+        return vreinterpretq_u8_u64(vld1q_u64(l));
 }
 
 uint8x16_t shr(uint8x16_t v, int n)
 {
-        uint64_t l0 = vgetq_lane_u64(v, 0);
-        uint64_t l1 = vgetq_lane_u64(v, 1);
-        l0 = l0 >> n | (((l1 << (64 - n)) >> (64 - n)) << (64 - n));
-        l1 >>= n;
-        uint8x16_t ret;
-        ret = vsetq_lane_u64(l0, ret, 0);
-        ret = vsetq_lane_u64(l1, ret, 1);
-        return ret;
+        uint64_t l[2];
+        vst1q_u64(l, v);
+        l[0] = l[0] >> n | (((l[1] << (64 - n)) >> (64 - n)) << (64 - n));
+        l[1] >>= n;
+        return vreinterpretq_u8_u64(vld1q_u64(l));
 }
 
 void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b, uint8x16_t m, int n)
