@@ -149,11 +149,11 @@ void benchmark_gift_64_vec_sliced(void)
                 MEASURE(gift_64_vec_sliced_permute(s), t0, t1);
         }
 
-        /* while (1) { */
+        while (1) {
                 rand_bytes((uint8_t*)&m, sizeof(m));
                 rand_bytes((uint8_t*)&key, sizeof(key));
                 MEASURE(gift_64_vec_sliced_encrypt(c, m, key), t0, t1);
-        /* } */
+        }
 }
 
 int main(int argc, char *argv[])
