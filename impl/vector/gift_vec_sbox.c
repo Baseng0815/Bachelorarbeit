@@ -4,6 +4,14 @@
 #include <arm_neon.h>
 #include <string.h>
 
+static uint64_t sbox_vec_u64[2] = {
+        0x09030f060c040a01UL, 0x0e080005070b0d02UL
+};
+
+static uint64_t sbox_vec_inv_u64[2] = {
+0x0b040c020608000dUL, 0x050f09030a01070eUL
+};
+
 static uint8x16_t sbox_vec;
 static uint8x16_t sbox_vec_inv;
 
@@ -166,12 +174,10 @@ void gift_64_vec_sbox_generate_round_keys(uint8x16_t round_keys[ROUNDS_GIFT_64],
 void gift_64_vec_sbox_init(void)
 {
         // construct sbox_vec
-        sbox_vec = vsetq_lane_u64(0x09030f060c040a01UL, sbox_vec, 0);
-        sbox_vec = vsetq_lane_u64(0x0e080005070b0d02UL, sbox_vec, 1);
+        sbox_vec = vld1q_u64(sbox_vec_u64);
 
         // construct sbox_vec_inv
-        sbox_vec_inv = vsetq_lane_u64(0x0b040c020608000dUL, sbox_vec_inv, 0);
-        sbox_vec_inv = vsetq_lane_u64(0x050f09030a01070eUL, sbox_vec_inv, 1);
+        sbox_vec_inv = vld1q_u64(sbox_vec_inv_u64);
 }
 
 uint64_t gift_64_vec_sbox_encrypt(const uint64_t m, const uint64_t key[2])

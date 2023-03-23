@@ -1,0 +1,70 @@
+\chapter{Implementation}
+
+We will provide and discuss implementations for the presented strategies in the
+C programming language. Although directly writing Assembler code could result
+in a small performance benefit, this generally increases the work necessary by
+an order of magnitude for only limited results. This is why we use NEON
+intrinsics.
+
+\subsection{NEON intrinsics}
+
+The header file \texttt{<arm\_neon.h>} provides ARM-specific data and function
+definitions including vector data types and C functions for working with these
+vectors. These functions are known as NEON intrinsics and give the programmer a
+high-level interface to most NEON instructions. Major advantages of this
+approach include the ease of development as the compiler takes over register
+allocation and load/store operations as well as performance benefits through
+compiler optimizations.
+
+Standard vector data types have the format \texttt{uintnxm\_t} with lane width
+$n$ in bits and and lane count $m$. Array types of the format
+\texttt{uintnxmxc\_t}, $c\in\{2,3,4\}$ are also defined which are used in
+operations requiring multiple parameters like \texttt{TBL} or pairwise
+load/stores. Intrinsics start with \texttt{v}, optionally contain a \texttt{q}
+after the operation name to indicate operation on a 128-bit register, and end
+with the lane data format. Multiplying eight pairs of 16-bit numbers
+\texttt{a,b} for example can be done via the following:
+
+\begin{center}
+    \texttt{uint16x8\_t result = vmulq\_u16(a, b);}
+\end{center}
+
+In this case, the compiler allocates vector registers for \texttt{a},
+\texttt{b} and \texttt{result} and assembles the intrinsic to \texttt{MUL
+Vr.8H, Va.8H, Vb.8H}. Necessary load and stores for the result and parameters
+are also handled automatically. Of special interest to us are the following
+intrinsics, each existing in different variants with different lane widths and
+also array types: \\
+
+\begin{table}[h!]
+    \centering
+    \footnotesize
+    \begin{tabularx}{\textwidth}{ll|X}
+        Intrinsic && Description \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vreinterpretq\_u8\_u64(uint64x2\_t)} & Explicit casting \\
+        \hline
+        \texttt{uint64\_t} & \texttt{vgetq\_lane\_u64(void)} & Extract a single lane \\
+        \hline
+        \texttt{void} & \texttt{vsetq\_lane\_u64(uint64\_t)} & Insert a single lane \\
+        \hline
+        \texttt{uint64x2\_t} & \texttt{vdupq\_n\_u64(uint64\_t)} & Initialize all lanes to same value \\
+        \hline
+        \texttt{void} & \texttt{vst1q\_u64(uint64\_t*, uint64x2\_t)} & Store from register to memory \\
+        \hline
+        \texttt{uint64x2\_t} & \texttt{vld1q\_u64(uint64\_t*, uint64x2\_t)} & Load from memory to register \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{veorq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise XOR \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vandq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise AND \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vorrq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise OR \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vmvnq\_u8(uint8x16\_t)} & bitwise NOT \\
+        \hline
+        \texttt{uint8x16\_t} & \texttt{vqtbl2q\_u8(uint8x16\_t, uint8x16\_t)} & permutation (\texttt{TBL}) \\
+    \end{tabularx}
+\end{table}
+
+The implementations closely follow the aforementioned strategies;
+instruction-level optimization is left to the compiler.
