@@ -31,7 +31,8 @@ static const uint64_t tables[16][16] = {
         { 0x0000000010000000UL, 0x0000200000008000UL, 0x4000000000000000UL, 0x4000000000008000UL, 0x4000200000000000UL, 0x4000200010008000UL, 0x0000200010000000UL, 0x0000000010008000UL, 0x0000200000000000UL, 0x4000000010008000UL, 0x0000200010008000UL, 0x4000200010000000UL, 0x4000000010000000UL, 0x0000000000000000UL, 0x0000000000008000UL, 0x4000200000008000UL }
 };
 
-void gift_64_table_generate_round_keys(uint64_t round_keys[ROUNDS_GIFT_64], const uint64_t key[2])
+void gift_64_table_generate_round_keys(uint64_t round_keys[restrict ROUNDS_GIFT_64],
+                                       const uint64_t key[restrict 2])
 {
         uint64_t key_state[] = {key[0], key[1]};
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
@@ -82,7 +83,7 @@ uint64_t gift_64_table_subperm(const uint64_t cipher_state)
         return new_cipher_state;
 }
 
-uint64_t gift_64_table_encrypt(const uint64_t m, const uint64_t key[2])
+uint64_t gift_64_table_encrypt(const uint64_t m, const uint64_t key[restrict 2])
 {
         uint64_t c = m;
 

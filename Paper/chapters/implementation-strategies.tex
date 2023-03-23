@@ -42,7 +42,7 @@ $16$ KiB.
 For \texttt{GIFT-64}, table construction is relatively straightforward and can
 be done as follows:
 
-\begin{lstlisting}[caption={Table construction algorithm}, escapechar=|]
+\begin{lstlisting}[caption={Table construction algorithm}, label={lst:tables}, escapechar=|]
     tables <- [][]
     for sbox_index from 0 to 15 do
         for sbox_input from 0 to 15 do|\label{lst:tablesbox}|
@@ -388,4 +388,4 @@ directly XOR the round key bits to the correct position. Extending these bits
 to bytes can then be done simply by repeatedly shifting and ORing the registers
 together.
 
-\subsection{Strategies for Camellia}
+\section{Strategies for Camellia}

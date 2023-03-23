@@ -260,11 +260,14 @@ void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[restrict ROU
                         round_key[i] |= round_key[i] << 4;
                 }
 
-                round_keys[round][0].val[0] = vld1q_u64(&round_key[0]);
-                round_keys[round][0].val[1] = vld1q_u64(&round_key[2]);
+                round_keys[round][0].val[0] = vsetq_lane_u64(round_key[0], round_keys[round][0].val[0], 0);
+                round_keys[round][0].val[0] = vsetq_lane_u64(round_key[1], round_keys[round][0].val[0], 0);
+                round_keys[round][0].val[1] = vsetq_lane_u64(round_key[2], round_keys[round][0].val[1], 0);
+                round_keys[round][0].val[1] = vsetq_lane_u64(round_key[3], round_keys[round][0].val[1], 0);
                 round_keys[round][0].val[2] = vdupq_n_u8(0);
-                round_keys[round][0].val[3] = vld1q_u64(&round_key[4]);
-                round_keys[round][1] = round_keys[round][0];
+                round_keys[round][0].val[3] = vsetq_lane_u64(round_key[4], round_keys[round][0].val[3], 0);
+                round_keys[round][0].val[3] = vsetq_lane_u64(round_key[5], round_keys[round][0].val[3], 0);
+                round_keys[round][1]        = round_keys[round][0];
 
                 // update key state
                 int k0 = (key_state[0] >> 0 ) & 0xffffUL;
