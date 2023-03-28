@@ -77,7 +77,7 @@ uint64_t gift_64_table_subperm(const uint64_t cipher_state)
 
         for (size_t i = 0; i < 16; i++) {
                 int nibble = (cipher_state >> (i * 4)) & 0xf;
-                new_cipher_state |= tables[i][nibble];
+                new_cipher_state ^= tables[i][nibble];
         }
 
         return new_cipher_state;
