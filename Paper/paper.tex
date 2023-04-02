@@ -10,6 +10,7 @@
 \usepackage{tabularx} % tabular with column specifier X to break lines
 % \usepackage{hyphenat}
 \usepackage{bookmark}
+\usepackage{fancyhdr} % fancy headers
 \usepackage{systeme} % systems of equation
 \usepackage[utf8]{inputenc} % necessary for proper unicode support
 \usepackage{parcolumns} % multiple column parallel typesetting
@@ -19,6 +20,11 @@
 \usepackage{listings} % source code listings
 \usepackage{biblatex} % better citation
 % \usepackage[a4paper, top=1cm, left=2cm, right=2cm, includeheadfoot]{geometry} % customize page geometry
+
+\pagestyle{fancy}
+\fancyhead[L]{\rightmark}
+\fancyhead[R]{\thepage}
+\fancyfoot{}
 
 % umlauts in lstlistings env
 \lstset{
@@ -69,7 +75,6 @@
 
 \include{chapters/introduction}
 \include{chapters/implementation-strategies}
-\include{chapters/implementation}
 \include{chapters/evaluation}
 \include{chapters/acknowledgements}
 \include{chapters/appendix}
