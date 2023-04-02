@@ -198,7 +198,7 @@ void gift_64_sliced_permute_inv(uint64_t s[8])
         dst[63] = src[7][1];
 }
 
-void gift_64_sliced_encrypt(uint8_t c[8][8], const uint8_t m[8][8], const uint64_t key[2])
+void gift_64_sliced_encrypt(uint64_t c[8], const uint64_t m[8], const uint64_t key[2])
 {
         // generate round keys
         uint64_t round_keys[ROUNDS_GIFT_SLICED_64][8];
@@ -206,7 +206,7 @@ void gift_64_sliced_encrypt(uint8_t c[8][8], const uint8_t m[8][8], const uint64
 
         // copy to state (eight 64-bit "registers") and pack message bits
         uint64_t state[8];
-        memcpy(state, m, 8 * 8 * sizeof(m[0][0]));
+        memcpy(state, m, 8 * sizeof(m[0]));
         bits_pack(state);
 
         // round loop
@@ -235,7 +235,7 @@ void gift_64_sliced_encrypt(uint8_t c[8][8], const uint8_t m[8][8], const uint64
         memcpy(c, state, 8 * sizeof(state[0]));
 }
 
-void gift_64_sliced_decrypt(uint8_t m[8][8], const uint8_t c[8][8], const uint64_t key[2])
+void gift_64_sliced_decrypt(uint64_t m[8], const uint64_t c[8], const uint64_t key[2])
 {
         // generate round keys
         uint64_t round_keys[ROUNDS_GIFT_SLICED_64][8];
@@ -243,7 +243,7 @@ void gift_64_sliced_decrypt(uint8_t m[8][8], const uint8_t c[8][8], const uint64
 
         // copy to state (eight 64-bit "registers") and pack message bits
         uint64_t state[8];
-        memcpy(state, c, 8 * 8 * sizeof(m[0][0]));
+        memcpy(state, c, 8 * sizeof(m[0]));
         bits_pack(state);
 
         // round loop

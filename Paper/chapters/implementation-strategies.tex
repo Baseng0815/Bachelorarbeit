@@ -282,12 +282,11 @@ crossing bits back into the other lane.
     &\text{shl}(V,n): \\
     &\qquad a,b&&=V[0],V[1] \\
     &\qquad c&&=(a\gg (64-n)) \\
-    &\qquad a&&=(a\ll n) \\
-    &\qquad b&&=(b\ll n)\lor c \\
-    &\qquad V[0],V[1]&&=a,b
+    &\qquad V[0]&&=(a\ll n) \\
+    &\qquad V[1]&&=(b\ll n)\lor c
 \end{alignat*}
 
-The following operations group all $i$th bits of the messages $a,c,\dots,o$
+The following operations group all $i$-th bits of the messages $a,c,\dots,o$
 into bytes and puts these into the lower half of the registers $V_{i\bmod 8}$.
 The same is done for messages $b,d,\dots,p$, only differing in that the bytes
 are put into the upper half of the registers.
@@ -304,8 +303,8 @@ are put into the upper half of the registers.
 With $Ax=o_xm_xk_xj_xg_xe_xc_xa_x$ and $Bx=p_xn_xl_xi_xh_xf_xd_xb_x$ denoting
 byte groups, our data now has the following permutation-friendly format:
 
+\scriptsize
 \[
-    \scriptsize
     \begin{array}{c|llllllll|llllllll}
         n & 15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
         \hline
@@ -455,6 +454,7 @@ also array types: \\
         \hline
         \texttt{uint8x16\_t} & \texttt{vqtbl2q\_u8(uint8x16\_t, uint8x16\_t)} & permutation (\texttt{TBL}) \\
     \end{tabularx}
+    \caption{Common NEON intrinsics}
 \end{table}
 
 \section{Strategies for Camellia}
