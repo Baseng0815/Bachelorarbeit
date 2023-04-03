@@ -51,7 +51,7 @@ static const size_t perm_64_inv[] = {
         4, 9, 14, 3, 20, 25, 30, 19, 36, 41, 46, 35, 52, 57, 62, 51
 };
 
-static const int round_constant[] = {
+static const int round_const[] = {
         // rounds 0-15
         0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3E, 0x3D, 0x3B, 0x37, 0x2F, 0x1E, 0x3C, 0x39, 0x33, 0x27, 0x0E,
         // rounds 16-31
@@ -76,19 +76,19 @@ uint8x16_t gift_64_vec_sbox_permute(const uint8x16_t cipher_state)
         uint64_t new_cipher_state = 0UL;
 
         // S-box 0-7
-        uint64_t boxes = vgetq_lane_u64(cipher_state, 0);
+        uint64_t boxes[2];
+        vst1q_u64(boxes, cipher_state);
         for (size_t box = 0; box < 8; box++) {
                 for (size_t i = 0; i < 4; i++) {
-                        int bit = (boxes >> (box * 8 + i)) & 0x1;
+                        int bit = (boxes[0] >> (box * 8 + i)) & 0x1;
                         new_cipher_state |= (uint64_t)bit << perm_64[box * 4 + i];
                 }
         }
 
         // S-box 8-15
-        boxes = vgetq_lane_u64(cipher_state, 1);
         for (size_t box = 0; box < 8; box++) {
                 for (size_t i = 0; i < 4; i++) {
-                        int bit = (boxes >> (box * 8 + i)) & 0x1;
+                        int bit = (boxes[1] >> (box * 8 + i)) & 0x1;
                         new_cipher_state |= (uint64_t)bit << perm_64[(box + 8) * 4 + i];
                 }
         }
@@ -128,7 +128,7 @@ uint8x16_t gift_64_vec_sbox_permute_inv(const uint8x16_t cipher_state)
         return ret;
 }
 
-void gift_64_vec_sbox_generate_round_keys(uint8x16_t round_keys[ROUNDS_GIFT_64],
+void gift_64_vec_sbox_generate_round_keys(uint8x16_t rks[ROUNDS_GIFT_64],
                                           const uint64_t key[2])
 {
         uint64_t key_state[] = {key[0], key[1]};
@@ -149,15 +149,15 @@ void gift_64_vec_sbox_generate_round_keys(uint8x16_t round_keys[ROUNDS_GIFT_64],
                 round_key ^= 1UL << 63;
 
                 // add round constants
-                round_key ^= ((round_constant[round] >> 0) & 0x1) << 3;
-                round_key ^= ((round_constant[round] >> 1) & 0x1) << 7;
-                round_key ^= ((round_constant[round] >> 2) & 0x1) << 11;
-                round_key ^= ((round_constant[round] >> 3) & 0x1) << 15;
-                round_key ^= ((round_constant[round] >> 4) & 0x1) << 19;
-                round_key ^= ((round_constant[round] >> 5) & 0x1) << 23;
+                round_key ^= ((round_const[round] >> 0) & 0x1) << 3;
+                round_key ^= ((round_const[round] >> 1) & 0x1) << 7;
+                round_key ^= ((round_const[round] >> 2) & 0x1) << 11;
+                round_key ^= ((round_const[round] >> 3) & 0x1) << 15;
+                round_key ^= ((round_const[round] >> 4) & 0x1) << 19;
+                round_key ^= ((round_const[round] >> 5) & 0x1) << 23;
 
                 // pack into vector register
-                U64_TO_V128(round_keys[round], round_key)
+                U64_TO_V128(rks[round], round_key)
 
                 // update key state
                 int k0 = (key_state[0] >> 0 ) & 0xffffUL;
@@ -187,14 +187,14 @@ uint64_t gift_64_vec_sbox_encrypt(const uint64_t m, const uint64_t key[2])
         U64_TO_V128(c, m);
 
         // generate round keys
-        uint8x16_t round_keys[ROUNDS_GIFT_64];
-        gift_64_vec_sbox_generate_round_keys(round_keys, key);
+        uint8x16_t rks[ROUNDS_GIFT_64];
+        gift_64_vec_sbox_generate_round_keys(rks, key);
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
                 c = gift_64_vec_sbox_subcells(c);
                 c = gift_64_vec_sbox_permute(c);
-                c = veorq_u8(c, round_keys[round]);
+                c = veorq_u8(c, rks[round]);
         }
 
         // unpack
@@ -226,12 +226,12 @@ uint64_t gift_64_vec_sbox_decrypt(const uint64_t c, const uint64_t key[2])
         U64_TO_V128(m, c);
 
         // generate round keys
-        uint8x16_t round_keys[ROUNDS_GIFT_64];
-        gift_64_vec_sbox_generate_round_keys(round_keys, key);
+        uint8x16_t rks[ROUNDS_GIFT_64];
+        gift_64_vec_sbox_generate_round_keys(rks, key);
 
         // round loop (in reverse)
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
-                m = veorq_u8(m, round_keys[round]);
+                m = veorq_u8(m, rks[round]);
                 m = gift_64_vec_sbox_permute_inv(m);
                 m = gift_64_vec_sbox_subcells_inv(m);
         }

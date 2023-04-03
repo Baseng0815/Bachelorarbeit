@@ -318,6 +318,7 @@ byte groups, our data now has the following permutation-friendly format:
         V_7 & B63 & B55 & B47 & B39 & B31 & B23 & B15 & B7 & A63 & A55 & A47 & A39 & A31 & A23 & A15 & A7
     \end{array}
 \]
+\normalsize
 
 Although this would already work, we prefer to have only bits of the same
 messages in each register - otherwise the permutation would need to operate on
@@ -429,30 +430,32 @@ also array types: \\
 \begin{table}[h!]
     \centering
     \footnotesize
-    \begin{tabularx}{\textwidth}{ll|X}
+    \begin{tabularx}{\textwidth}{llX}
+        \toprule
         Intrinsic && Description \\
-        \hline
+        \midrule
         \texttt{uint8x16\_t} & \texttt{vreinterpretq\_u8\_u64(uint64x2\_t)} & Explicit casting \\
-        \hline
+        \midrule
         \texttt{uint64\_t} & \texttt{vgetq\_lane\_u64(void)} & Extract a single lane \\
-        \hline
+        \midrule
         \texttt{void} & \texttt{vsetq\_lane\_u64(uint64\_t)} & Insert a single lane \\
-        \hline
+        \midrule
         \texttt{uint64x2\_t} & \texttt{vdupq\_n\_u64(uint64\_t)} & Initialize all lanes to same value \\
-        \hline
+        \midrule
         \texttt{void} & \texttt{vst1q\_u64(uint64\_t*, uint64x2\_t)} & Store from register to memory \\
-        \hline
+        \midrule
         \texttt{uint64x2\_t} & \texttt{vld1q\_u64(uint64\_t*, uint64x2\_t)} & Load from memory to register \\
-        \hline
+        \midrule
         \texttt{uint8x16\_t} & \texttt{veorq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise XOR \\
-        \hline
+        \midrule
         \texttt{uint8x16\_t} & \texttt{vandq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise AND \\
-        \hline
+        \midrule
         \texttt{uint8x16\_t} & \texttt{vorrq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise OR \\
-        \hline
+        \midrule
         \texttt{uint8x16\_t} & \texttt{vmvnq\_u8(uint8x16\_t)} & bitwise NOT \\
-        \hline
+        \midrule
         \texttt{uint8x16\_t} & \texttt{vqtbl2q\_u8(uint8x16\_t, uint8x16\_t)} & permutation (\texttt{TBL}) \\
+        \bottomrule
     \end{tabularx}
     \caption{Common NEON intrinsics}
 \end{table}

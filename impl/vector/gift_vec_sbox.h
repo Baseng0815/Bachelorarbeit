@@ -11,7 +11,7 @@ uint8x16_t gift_64_vec_sbox_subcells(const uint8x16_t cipher_state);
 uint8x16_t gift_64_vec_sbox_subcells_inv(const uint8x16_t cipher_state);
 uint8x16_t gift_64_vec_sbox_permute(const uint8x16_t cipher_state);
 uint8x16_t gift_64_vec_sbox_permute_inv(const uint8x16_t cipher_state);
-void       gift_64_vec_sbox_generate_round_keys(uint8x16_t round_keys[ROUNDS_GIFT_64],
+void       gift_64_vec_sbox_generate_round_keys(uint8x16_t rks[ROUNDS_GIFT_64],
                                                 const uint64_t key[2]);
 
 // construct tables

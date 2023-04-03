@@ -1,23 +1,58 @@
 \chapter{Evaluation}
 
+In this chapter, we will evaluate the strategies through performance
+measurements and discuss advantages, disadvantages and possible use cases.
+
 \section{Benchmarks}
 
 Performance measurements were taken for each strategy as well as for naive
-reference implementations and are presented in cycles per byte ($\frac cB$) as
-well as constant throughput of the entire encryption algorithm. Key derivation
-is included as well.\\
+reference implementations and are presented in cycles per byte (c/B) as well as
+constant throughput in MiB/s of the entire encryption strategy.
 
-\begin{table}[h!] {
-        \centering
-        \begin{tabular}{l|l|l}
-            \hline
-            \multirow{2}{*}{Naive \texttt{GIFT-64}} & somepart & time \\
-                                                    & otherpart & othertime \\
-                                                    \hline
-            next & lmao & 321 \\
-        \end{tabular}
-    }
+The AArch64 defines system registers in addition to general-purpose registers
+which are used for system configuration and monitoring. One of these registers
+is the performance monitor cycle count register \texttt{PMCCNTR} which counts
+processor clock cycles. Access from userspace is disabled by default and can be
+activated through a custom Linux kernel module by setting \texttt{PMUSERENR.EN}
+to 1. To minimize interference and because the cycle count register is
+core-local, we isolate one of the cores from the rest of the system for
+exclusive benchmarking use.
 
-    \subsection{SPN}
+\subsection{GIFT}
 
-    \subsection{Camellia}
+\begin{table}[h!]
+    \centering
+    \small
+    \begin{tabular}{llcc}
+        \toprule
+        Strategy & Function & Latency (c/B) & Total throughput (MiB/s) \\
+        \midrule
+        \multirow{2}{*}{Naive \texttt{GIFT-64}} & \texttt{round\_keys} & 191.17 & \multirow{2}{*}{throughput} \\
+                                                & \texttt{subcells} & 2.74 & \\
+                                                & \texttt{permute} & 21.96 & \\
+                                                & \texttt{encrypt} & 995.36 & \\
+        \midrule
+        \multirow{2}{*}{Naive \texttt{GIFT-128}} & \texttt{round\_keys} & 166.73 & \multirow{2}{*}{throughput} \\
+                                                 & \texttt{subcells} & 2.72 & \\
+                                                 & \texttt{permute} & 61.28 & \\
+                                                 & \texttt{encrypt} & 2786.88 & \\
+        \midrule
+        \multirow{2}{*}{Table-driven} & \texttt{round\_keys} & 190.42 & \multirow{2}{*}{throughput} \\
+                                                & \texttt{subperm} & 3.88 & \\
+                                                & \texttt{encrypt} & 312.97 & \\
+        \midrule
+        \multirow{2}{*}{\texttt{vperm} S-box} & \texttt{round\_keys} & 271.35 & \multirow{2}{*}{throughput} \\
+                                              & \texttt{subcells} & 1.12 & \\
+                                              & \texttt{permute} & 14.98 & \\
+                                              & \texttt{encrypt} & 761.18 & \\
+        \midrule
+        \multirow{2}{*}{Bitsliced} & \texttt{round\_keys} & 7.69 & \multirow{2}{*}{throughput} \\
+                                   & \texttt{subcells} & 0.28 & \\
+                                   & \texttt{permute} & 0.11 & \\
+                                   & \texttt{encrypt} & 21.38 & \\
+        \bottomrule
+    \end{tabular}
+    \caption{Benchmarks for \texttt{GIFT}}
+\end{table}
+
+\subsection{Camellia}

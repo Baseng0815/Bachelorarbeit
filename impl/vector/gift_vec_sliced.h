@@ -17,7 +17,7 @@ void gift_64_vec_sliced_subcells(uint8x16x4_t cipher_state[restrict 2]);
 void gift_64_vec_sliced_subcells_inv(uint8x16x4_t cipher_state[restrict 2]);
 void gift_64_vec_sliced_permute(uint8x16x4_t cipher_state[restrict 2]);
 void gift_64_vec_sliced_permute_inv(uint8x16x4_t cipher_state[2]);
-void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t round_keys[restrict ROUNDS_GIFT_64][2],
+void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t rks[restrict ROUNDS_GIFT_64][2],
                                             const uint64_t key[restrict 2]);
 
 void gift_64_vec_sliced_init(void);

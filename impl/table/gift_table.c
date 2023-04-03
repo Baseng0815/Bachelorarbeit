@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const int round_constant[] = {
+static const int round_const[] = {
         // rounds 0-15
         0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3E, 0x3D, 0x3B,
         0x37, 0x2F, 0x1E, 0x3C, 0x39, 0x33, 0x27, 0x0E,
@@ -34,7 +34,7 @@ static const uint64_t tables[16][16] = {
         { 0x0000000010000000UL, 0x0000200000008000UL, 0x4000000000000000UL, 0x4000000000008000UL, 0x4000200000000000UL, 0x4000200010008000UL, 0x0000200010000000UL, 0x0000000010008000UL, 0x0000200000000000UL, 0x4000000010008000UL, 0x0000200010008000UL, 0x4000200010000000UL, 0x4000000010000000UL, 0x0000000000000000UL, 0x0000000000008000UL, 0x4000200000008000UL }
 };
 
-void gift_64_table_generate_round_keys(uint64_t round_keys[restrict ROUNDS_GIFT_64],
+void gift_64_table_generate_round_keys(uint64_t rks[restrict ROUNDS_GIFT_64],
                                        const uint64_t key[restrict 2])
 {
         uint64_t key_state[] = {key[0], key[1]};
@@ -43,24 +43,24 @@ void gift_64_table_generate_round_keys(uint64_t round_keys[restrict ROUNDS_GIFT_
                 int u = (key_state[0] >> 16) & 0xffff;
 
                 // add round key (RK=U||V)
-                round_keys[round] = 0UL;
+                rks[round] = 0UL;
                 for (size_t i = 0; i < 16; i++) {
                         int key_bit_v   = (v >> i)  & 0x1;
                         int key_bit_u   = (u >> i)  & 0x1;
-                        round_keys[round] ^= (uint64_t)key_bit_v << (i * 4 + 0);
-                        round_keys[round] ^= (uint64_t)key_bit_u << (i * 4 + 1);
+                        rks[round] ^= (uint64_t)key_bit_v << (i * 4 + 0);
+                        rks[round] ^= (uint64_t)key_bit_u << (i * 4 + 1);
                 }
 
                 // add single bit
-                round_keys[round] ^= 1UL << 63;
+                rks[round] ^= 1UL << 63;
 
                 // add round constants
-                round_keys[round] ^= ((round_constant[round] >> 0) & 0x1) << 3;
-                round_keys[round] ^= ((round_constant[round] >> 1) & 0x1) << 7;
-                round_keys[round] ^= ((round_constant[round] >> 2) & 0x1) << 11;
-                round_keys[round] ^= ((round_constant[round] >> 3) & 0x1) << 15;
-                round_keys[round] ^= ((round_constant[round] >> 4) & 0x1) << 19;
-                round_keys[round] ^= ((round_constant[round] >> 5) & 0x1) << 23;
+                rks[round] ^= ((round_const[round] >> 0) & 0x1) << 3;
+                rks[round] ^= ((round_const[round] >> 1) & 0x1) << 7;
+                rks[round] ^= ((round_const[round] >> 2) & 0x1) << 11;
+                rks[round] ^= ((round_const[round] >> 3) & 0x1) << 15;
+                rks[round] ^= ((round_const[round] >> 4) & 0x1) << 19;
+                rks[round] ^= ((round_const[round] >> 5) & 0x1) << 23;
 
                 // update key state
                 int k0 = (key_state[0] >> 0 ) & 0xffffUL;
@@ -91,13 +91,13 @@ uint64_t gift_64_table_encrypt(const uint64_t m, const uint64_t key[restrict 2])
         uint64_t c = m;
 
         // generate round keys
-        uint64_t round_keys[ROUNDS_GIFT_64];
-        gift_64_table_generate_round_keys(round_keys, key);
+        uint64_t rks[ROUNDS_GIFT_64];
+        gift_64_table_generate_round_keys(rks, key);
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
                 c = gift_64_table_subperm(c);
-                c ^= round_keys[round];
+                c ^= rks[round];
         }
 
         return c;

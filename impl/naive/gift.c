@@ -109,7 +109,8 @@ uint64_t gift_64_permute_inv(const uint64_t cipher_state)
         return new_cipher_state;
 }
 
-void gift_64_generate_round_keys(uint64_t round_keys[ROUNDS_GIFT_64], const uint64_t key[2])
+void gift_64_generate_round_keys(uint64_t round_keys[restrict ROUNDS_GIFT_64],
+                                 const uint64_t key[restrict 2])
 {
         uint64_t key_state[] = {key[0], key[1]};
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
@@ -148,21 +149,21 @@ void gift_64_generate_round_keys(uint64_t round_keys[ROUNDS_GIFT_64], const uint
         }
 }
 
-void gift_128_subcells(uint8_t cipher_state[32])
+void gift_128_subcells(uint8_t cipher_state[restrict 32])
 {
         for (size_t i = 0; i < 32; i++) {
                 cipher_state[i] = sbox[cipher_state[i]];
         }
 }
 
-void gift_128_subcells_inv(uint8_t cipher_state[32])
+void gift_128_subcells_inv(uint8_t cipher_state[restrict 32])
 {
         for (size_t i = 0; i < 32; i++) {
                 cipher_state[i] = sbox_inv[cipher_state[i]];
         }
 }
 
-void gift_128_permute(uint8_t cipher_state[32])
+void gift_128_permute(uint8_t cipher_state[restrict 32])
 {
         uint8_t old_cipher_state[32];
         memcpy(old_cipher_state, cipher_state, sizeof(old_cipher_state));
@@ -175,7 +176,7 @@ void gift_128_permute(uint8_t cipher_state[32])
         }
 }
 
-void gift_128_permute_inv(uint8_t cipher_state[32])
+void gift_128_permute_inv(uint8_t cipher_state[restrict 32])
 {
         uint8_t old_cipher_state[32];
         memcpy(old_cipher_state, cipher_state, sizeof(old_cipher_state));
@@ -188,7 +189,8 @@ void gift_128_permute_inv(uint8_t cipher_state[32])
         }
 }
 
-void gift_128_generate_round_keys(uint8_t round_keys[ROUNDS_GIFT_128][32], const uint64_t key[2])
+void gift_128_generate_round_keys(uint8_t round_keys[restrict ROUNDS_GIFT_128][32],
+                                  const uint64_t key[restrict 2])
 {
         uint64_t key_state[] = {key[0], key[1]};
         for (int round = 0; round < ROUNDS_GIFT_128; round++) {
@@ -227,7 +229,8 @@ void gift_128_generate_round_keys(uint8_t round_keys[ROUNDS_GIFT_128][32], const
         }
 }
 
-uint64_t gift_64_encrypt(const uint64_t m, const uint64_t key[2])
+uint64_t gift_64_encrypt(const uint64_t m,
+                         const uint64_t key[restrict 2])
 {
         uint64_t c = m;
 
@@ -245,7 +248,8 @@ uint64_t gift_64_encrypt(const uint64_t m, const uint64_t key[2])
         return c;
 }
 
-uint64_t gift_64_decrypt(const uint64_t c, const uint64_t key[2])
+uint64_t gift_64_decrypt(const uint64_t c,
+                         const uint64_t key[restrict 2])
 {
         uint64_t m = c;
 
@@ -264,7 +268,9 @@ uint64_t gift_64_decrypt(const uint64_t c, const uint64_t key[2])
         return m;
 }
 
-void gift_128_encrypt(uint8_t c_[16], const uint8_t m[16], const uint64_t key[2])
+void gift_128_encrypt(uint8_t c_[restrict 16],
+                      const uint8_t m[restrict 16],
+                      const uint64_t key[restrict 2])
 {
         uint8_t c[32]; // one byte per s-box
         for (size_t i = 0; i < 32; i++) {
@@ -290,7 +296,9 @@ void gift_128_encrypt(uint8_t c_[16], const uint8_t m[16], const uint64_t key[2]
         }
 }
 
-void gift_128_decrypt(uint8_t m_[16], const uint8_t c[16], const uint64_t key[2])
+void gift_128_decrypt(uint8_t m_[restrict 16],
+                      const uint8_t c[restrict 16],
+                      const uint64_t key[restrict 2])
 {
         uint8_t m[32]; // one byte per s-box
         for (size_t i = 0; i < 32; i++) {
