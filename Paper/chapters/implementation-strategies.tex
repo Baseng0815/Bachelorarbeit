@@ -3,7 +3,7 @@
 Due to the structural differences of SPN- and Feistel network-based ciphers, we
 shall analyze these two separately.
 
-\section{Strategies for SPN}
+\section{Strategies for \texttt{GIFT}}
 
 Three implementation strategies for substitution-permutation networks are
 introduced by \cite{implx86:2014}:
@@ -82,54 +82,13 @@ through all 32 S-boxes instead of 16 on line \ref{lst:tablesbox}.
 
 \subsection{Using \texttt{vperm}}
 
-Nowadays, most instructions set architectures support single-instruction,
-multiple-data processing. The idea of such an SIMD system is to work on
-multiple data stored in vectors at once to speed up calculations. For A64, two
-types of vector processing are available:
-
-\begin{enumerate}
-    \item Advanced SIMD, known as NEON
-    \item Scalable Vector Extension (SVE)
-\end{enumerate}
-
-We will take a look at NEON as this is the type of vector processing supported
-by the Cortex-A73 processor.
-
-\subsubsection{ARM Neon}
-
-The register file of the NEON unit is made up of 32 quad-word (128-bit)
-registers \texttt{V[0-31]}, each extending the standard 64-bit floating-point
-registers \mbox{\texttt{D[0-31]}}. These registers are divided into equally
-sized lanes on which the vector instructions operate. Valid ways to interpret
-for example the register \texttt{V0} are:
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=\textwidth]{Figures/V_register.pdf}
-    \caption{Divisions of the V0 register}
-\end{figure}
-
-NEON instructions interpret their operands' layouts (i.e. lane count and width)
-through the use of suffixes such as \texttt{.4S} or \texttt{.8H}. For example,
-adding eight 16-bit halfwords from register \texttt{V1} and \texttt{V2}
-together and storing the result in \texttt{V0} can be done as follows:
-
-\begin{center}
-    \texttt{ADD V0.8H, V1.8H, V2.8H}
-\end{center}
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=\textwidth]{Figures/vector_add.pdf}
-    \caption{Addition of two vector registers}
-\end{figure}
-
-The plenitude of different processing instructions allow flexible ways to
-further speed up algorithms having reached their optimizational limit on
-non-SIMD platforms. \texttt{vperm}, a general term standing for \textit{vector
-permute}, is a common instruction on SIMD machines. Called \texttt{TBL} on
-NEON, it is used for parallel table lookups and arbitrary permutations. It takes
-two inputs to perform a lanewise lookup:
+The plenitude of different processing instructions introduced by
+NEON\ref{ss:neon} allow flexible ways to further speed up algorithms having
+reached their optimizational limit on non-SIMD platforms. \texttt{vperm}, a
+general term standing for \textit{vector permute}, is a common instruction on
+SIMD machines. Called \texttt{TBL} on NEON, it is used for parallel table
+lookups and arbitrary permutations. It takes two inputs to perform a lanewise
+lookup:
 
 \begin{enumerate}
     \item A register with lookup values
@@ -388,76 +347,5 @@ expensive. Because we know where each byte group ends up after packing, we can
 directly XOR the round key bits to the correct position. Extending these bits
 to bytes can then be done simply by repeatedly shifting and ORing the registers
 together.
-
-\section{Implementation}
-
-Implementations in the C programming language for the presented strategies can
-be found in Appendix \ref{app:cimpl}. Although directly writing Assembler code could
-result in a small performance benefit, this generally increases the work
-necessary by an order of magnitude for only limited results. Instruction-level
-optimization and in particular register allocation is left to the compiler.
-
-\subsection{NEON intrinsics}
-
-The header file \texttt{<arm\_neon.h>} provides ARM-specific data and function
-definitions including vector data types and C functions for working with these
-vectors. These functions are known as NEON intrinsics \cite{neonintr:2022} and
-give the programmer a high-level interface to most NEON instructions. Major
-advantages of this approach include the ease of development as the compiler
-takes over register allocation and load/store operations as well as performance
-benefits through compiler optimizations.
-
-Standard vector data types have the format \texttt{uintnxm\_t} with lane width
-$n$ in bits and and lane count $m$. Array types of the format
-\texttt{uintnxmxc\_t}, $c\in\{2,3,4\}$ are also defined which are used in
-operations requiring multiple parameters like \texttt{TBL} or pairwise
-load/stores. Intrinsics include the operation name and lane data format as well
-as an optional \texttt{q} suffix to indicate operation on a 128-bit register.
-Multiplying eight pairs of 16-bit numbers \texttt{a,b} for example can be done
-via the following:
-
-\begin{center}
-    \texttt{uint16x8\_t result = vmulq\_u16(a, b);}
-\end{center}
-
-In this case, the compiler allocates vector registers for \texttt{a},
-\texttt{b} and \texttt{result} and assembles the intrinsic to \texttt{MUL
-Vr.8H, Va.8H, Vb.8H}. Necessary loads and stores for the result and parameters
-are also handled automatically. Of special interest to us are the following
-intrinsics, each existing in different variants with different lane widths and
-also array types: \\
-
-\begin{table}[h!]
-    \centering
-    \footnotesize
-    \begin{tabularx}{\textwidth}{llX}
-        \toprule
-        Intrinsic && Description \\
-        \midrule
-        \texttt{uint8x16\_t} & \texttt{vreinterpretq\_u8\_u64(uint64x2\_t)} & Explicit casting \\
-        \midrule
-        \texttt{uint64\_t} & \texttt{vgetq\_lane\_u64(void)} & Extract a single lane \\
-        \midrule
-        \texttt{void} & \texttt{vsetq\_lane\_u64(uint64\_t)} & Insert a single lane \\
-        \midrule
-        \texttt{uint64x2\_t} & \texttt{vdupq\_n\_u64(uint64\_t)} & Initialize all lanes to same value \\
-        \midrule
-        \texttt{void} & \texttt{vst1q\_u64(uint64\_t*, uint64x2\_t)} & Store from register to memory \\
-        \midrule
-        \texttt{uint64x2\_t} & \texttt{vld1q\_u64(uint64\_t*, uint64x2\_t)} & Load from memory to register \\
-        \midrule
-        \texttt{uint8x16\_t} & \texttt{veorq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise XOR \\
-        \midrule
-        \texttt{uint8x16\_t} & \texttt{vandq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise AND \\
-        \midrule
-        \texttt{uint8x16\_t} & \texttt{vorrq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise OR \\
-        \midrule
-        \texttt{uint8x16\_t} & \texttt{vmvnq\_u8(uint8x16\_t)} & bitwise NOT \\
-        \midrule
-        \texttt{uint8x16\_t} & \texttt{vqtbl2q\_u8(uint8x16\_t, uint8x16\_t)} & permutation (\texttt{TBL}) \\
-        \bottomrule
-    \end{tabularx}
-    \caption{Common NEON intrinsics}
-\end{table}
 
 \section{Strategies for Camellia}

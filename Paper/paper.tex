@@ -1,33 +1,32 @@
 \documentclass[12pt]{report}
 
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usepackage{amsthm}
-\usepackage{ulem} % underline
+\usepackage{amsmath, amsfonts, amssymb, amsthm}
+\usepackage[normalem]{ulem} % underline (don't redefine emph to underline!)
 \usepackage{float} % H float specifier
-\usepackage{hyperref} % hyperlinks
 \usepackage{tabularx} % tabular with column specifier X to break lines
-% \usepackage{hyphenat}
-\usepackage{bookmark}
+% \usepackage{hyphenat} % disable/enable hyphenation
+\usepackage{bookmark} % this loads hyperref
 \usepackage{multirow}
-\usepackage{hhline} % double hlines going through vertical lines
 \usepackage{booktabs} % (top|mid|bottom)rule
 \usepackage{fancyhdr} % fancy headers
 \usepackage{systeme} % systems of equation
 \usepackage[utf8]{inputenc} % necessary for proper unicode support
 \usepackage{parcolumns} % multiple column parallel typesetting
-\usepackage[english]{babel} % comment this for Angelsächsisch
+\usepackage[english]{babel} % uncomment this for Angelsächsisch
 \usepackage{graphicx} % including graphics
 \usepackage{sourcecodepro} % best font
 \usepackage{listings} % source code listings
-\usepackage{biblatex} % better citation
-% \usepackage[a4paper, top=1cm, left=2cm, right=2cm, includeheadfoot]{geometry} % customize page geometry
+\usepackage[backend=biber, sorting=none]{biblatex} % better citation
+\usepackage[a4paper]{geometry} % customize page geometry
 
 \pagestyle{fancy}
 \fancyhead[L]{\rightmark}
 \fancyhead[R]{\thepage}
 \fancyfoot{}
+
+% non-italic bibliography titles
+\DeclareFieldFormat{title}{``#1''}
+\DeclareFieldFormat{citetitle}{``#1''}
 
 % umlauts in lstlistings env
 \lstset{
@@ -78,6 +77,7 @@
 
 \include{chapters/introduction}
 \include{chapters/implementation-strategies}
+\include{chapters/implementation}
 \include{chapters/evaluation}
 \include{chapters/acknowledgements}
 \include{chapters/appendix}

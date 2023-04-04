@@ -93,15 +93,15 @@ by
 \subsubsection{Round key extraction and key schedule}
 
 Round key extraction differs for \texttt{GIFT-64} and \texttt{GIFT-128}. Let
-$K=k7||k6||\dots||k0$ denote the $128$-bit key state.
+$K=k_7||k_6||\dots||k_0$ denote the $128$-bit key state.
 
 \paragraph{GIFT-64}. We extract two 16-bit words $U||V=k_1||k_0$ from the key
-state. $u_i$ and $v_i$ are XORed to $r_{4i+1}$ and $r_{4i}$ of the round key
-$R$ respectively.
+state. These are then added to the 64-bit round key: $R_{4i+1}\leftarrow
+u_i,R_{4i}\leftarrow v_i$.
 
-\paragraph{GIFT-128}. We extract two 32-bit words $U||V=k_5||k4||k1||k_0$ from
-the key state. $u_i$ and $v_i$ are XORed to $r_{4i+2}$ and $b_{4i+1}$ of the
-round key $R$ respectively.
+\paragraph{GIFT-128}. We extract two 32-bit words $U||V=k_5||k_4||k_1||k_0$ from
+the key state. These are then added to the 128-bit round key: $R_{4i+2}\leftarrow
+u_i,R_{4i+1}\leftarrow v_i$.
 
 In both cases, we additionally XOR a round constant $C=c_5c_4c_3c_2c_1c_0$ to
 bit positions $n-1,23,19,15,11,7,3$. The round constants are generated using a
@@ -126,5 +126,182 @@ $k_0\leftarrow k_0\ggg 12$ and rotating the new state $32$ bits to the right:
 
 \section{The ARMv8 platform}
 
-With small devices, embedded processors and ASICs becoming ever more ubiquitous
-and essential in areas like medicine or automotive design, the need for ...
+With small devices and embedded processors becoming ever more ubiquitous and
+essential in areas like consumer electronics or industrial and IoT
+applications, the need for low-power, high-performance microprocessors has
+increased steadily. With more than 250 billion chips shipped, semiconductors
+designed by ARM power 95\% of mobile devices and have found a great many
+applications due to their high performance and low power consumption. The
+ODROID-N2+\cite{odroidn2} development board we are using is based on the big.LITTLE
+architecture and is powered by a quad-core ARM Cortex-A73 processor and a
+weaker dual-core ARM Cortex-A53 for power efficiency. Both these processors are
+part of the eight generation of ARM designs known as ARMv8\cite{armv8:2013}.
+
+ARMv8 defines three architecture profiles for different use cases as well as
+dynamic execution states with corresponding instruction sets. This work will
+focus on the A profile running in the AArch64 state utilizing the A64
+instruction set with NEON and crypto extensions.
+
+\begin{table}[h!]
+    \centering
+    \begin{tabularx}{\textwidth}{lX}
+        \toprule
+        Profile & Description \\
+        \midrule
+        Application (A) & Traditional use with virtual memory and privilege level support \\
+        Real-time (R) & Real-time, low-latency, deterministic embedded systems \\
+        Microcontroller (M) & Very low-power, fast-interrupt embedded systems \\
+        \bottomrule
+    \end{tabularx}
+    \caption{ARMv8 profiles}
+\end{table}
+
+\begin{table}[h!]
+    \centering
+    \begin{tabularx}{\textwidth}{llX}
+        \toprule
+        Execution state & Usage & Instruction sets \\
+        \midrule
+        AArch32 & 32-bit compatibility & A32/T32 \\
+        AArch64 & 64-bit & A64 \\
+        \bottomrule
+    \end{tabularx}
+    \caption{ARMv8 execution states}
+\end{table}
+
+\subsection{General architecture}
+
+ARMv8 is a RISC architecture employing simple data processing instructions
+operating only on registers as well as dedicated load/store instructions to
+transfer data from register to memory and back. This enables faster execution
+of individual instructions, a simplier pipeline design, predictable instruction
+timings and fewer addressing modes.
+
+The A64 instruction set defines 31 64-bit general-purpose registers
+\texttt{X0-X30} which can also be accessed as 32-bit registers \texttt{W0-W30}.
+Values are loaded from and stored to memory using \texttt{LDR}/\texttt{STR}.
+Data processing instructions generally use explicit output registers instead of
+overwriting the first input register.
+
+\begin{table}[h!]
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{llX}
+        \toprule
+        Addressing mode & Example & Description \\
+        \midrule
+        Base register & \texttt{LDR W0, [X1]} & \texttt{W0 = *(X1);} \\
+        Offset & \texttt{LDR W0, [X1, \#12]} & \texttt{W0 = *(X1 + 12);} \\
+        Pre-indexing & \texttt{LDR W0, [X1, \#12]!} & \texttt{X1 += 12; W0 = *(X1)} \\
+        Post-indexing & \texttt{LDR W0, [X1], \#12} & \texttt{W0 = *(X1); X1 += 12} \\
+        \bottomrule
+    \end{tabularx}
+    \caption{AArch64 addressing modes}
+\end{table}
+
+\subsection{NEON}
+\label{ss:neon}
+
+ARMv8 supports single-instruction, multiple-data ARMv8 supports
+single-instruction, multiple-data (SIMD) processing. These systems allow the
+programmer to store multiple pieces of data in a vector and work on them in
+parallel to speed up calculations. The A64 instruction set defines two possible
+SIMD implementations.
+
+\begin{enumerate}
+    \item Advanced SIMD, known as NEON
+    \item Scalable Vector Extension (SVE)
+\end{enumerate}
+
+We will take a look at NEON as this is the type of vector processing supported
+by the Cortex-A73 processor.
+
+The register file of the NEON unit is made up of 32 quad-word (128-bit)
+registers \texttt{V[0-31]}, each extending the standard 64-bit floating-point
+registers \mbox{\texttt{D[0-31]}}. These registers are divided into equally
+sized lanes on which the vector instructions operate. Valid ways to interpret
+for example the register \texttt{V0} are:
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/V_register.pdf}
+    \caption{Divisions of the V0 register}
+\end{figure}
+
+NEON instructions interpret their operands' layouts (i.e. lane count and width)
+through the use of suffixes such as \texttt{.4S} or \texttt{.8H}. For example,
+adding eight 16-bit halfwords from register \texttt{V1} and \texttt{V2}
+together and storing the result in \texttt{V0} can be done as follows:
+
+\begin{center}
+    \texttt{ADD V0.8H, V1.8H, V2.8H}
+\end{center}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/vector_add.pdf}
+    \caption{Addition of two vector registers}
+\end{figure}
+
+\subsection{NEON Intrinsics}
+
+The header file \texttt{<arm\_neon.h>} provides ARM-specific data and function
+definitions including vector data types and C functions for working with these
+vectors. These functions are known as NEON intrinsics \cite{neonintr:2022} and
+give the programmer a high-level interface to most NEON instructions. Major
+advantages of this approach include the ease of development as the compiler
+takes over register allocation and load/store operations as well as performance
+benefits through compiler optimizations.
+
+Standard vector data types have the format \texttt{uintnxm\_t} with lane width
+$n$ in bits and and lane count $m$. Array types of the format
+\texttt{uintnxmxc\_t}, $c\in\{2,3,4\}$ are also defined which are used in
+operations requiring multiple parameters like \texttt{TBL} or pairwise
+load/stores. Intrinsics include the operation name and lane data format as well
+as an optional \texttt{q} suffix to indicate operation on a 128-bit register.
+Multiplying eight pairs of 16-bit numbers \texttt{a,b} for example can be done
+via the following:
+
+\begin{center}
+    \texttt{uint16x8\_t result = vmulq\_u16(a, b);}
+\end{center}
+
+In this case, the compiler allocates vector registers for \texttt{a},
+\texttt{b} and \texttt{result} and assembles the intrinsic to \texttt{MUL
+Vr.8H, Va.8H, Vb.8H}. Necessary loads and stores for the result and parameters
+are also handled automatically. Of special interest to us are the following
+intrinsics, each existing in different variants with different lane widths and
+also array types: \\
+
+\begin{table}[h!]
+    \centering
+    \footnotesize
+    \begin{tabularx}{\textwidth}{llX}
+        \toprule
+        Intrinsic && Description \\
+        \midrule
+        \texttt{uint8x16\_t} & \texttt{vreinterpretq\_u8\_u64(uint64x2\_t)} & Explicit casting \\
+        \midrule
+        \texttt{uint64\_t} & \texttt{vgetq\_lane\_u64(void)} & Extract a single lane \\
+        \midrule
+        \texttt{void} & \texttt{vsetq\_lane\_u64(uint64\_t)} & Insert a single lane \\
+        \midrule
+        \texttt{uint64x2\_t} & \texttt{vdupq\_n\_u64(uint64\_t)} & Initialize all lanes to same value \\
+        \midrule
+        \texttt{void} & \texttt{vst1q\_u64(uint64\_t*, uint64x2\_t)} & Store from register to memory \\
+        \midrule
+        \texttt{uint64x2\_t} & \texttt{vld1q\_u64(uint64\_t*, uint64x2\_t)} & Load from memory to register \\
+        \midrule
+        \texttt{uint8x16\_t} & \texttt{veorq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise XOR \\
+        \midrule
+        \texttt{uint8x16\_t} & \texttt{vandq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise AND \\
+        \midrule
+        \texttt{uint8x16\_t} & \texttt{vorrq\_u8(uint8x16\_t, uint8x16\_t)} & bitwise OR \\
+        \midrule
+        \texttt{uint8x16\_t} & \texttt{vmvnq\_u8(uint8x16\_t)} & bitwise NOT \\
+        \midrule
+        \texttt{uint8x16\_t} & \texttt{vqtbl2q\_u8(uint8x16\_t, uint8x16\_t)} & permutation (\texttt{TBL}) \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Common NEON intrinsics}
+\end{table}
