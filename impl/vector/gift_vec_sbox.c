@@ -9,33 +9,62 @@ static uint64_t sbox_vec_u64[2] = {
 };
 
 static uint64_t sbox_vec_inv_u64[2] = {
-0x0b040c020608000dUL, 0x050f09030a01070eUL
+        0x0b040c020608000dUL, 0x050f09030a01070eUL
 };
 
 static uint8x16_t sbox_vec;
 static uint8x16_t sbox_vec_inv;
 
-#define U64_TO_V128(V,M)\
-        V = vsetq_lane_u64(\
-        (uint64_t)((M >> 4 * 0) & 0xf) << 8 * 0 |\
-        (uint64_t)((M >> 4 * 1) & 0xf) << 8 * 1 |\
-        (uint64_t)((M >> 4 * 2) & 0xf) << 8 * 2 |\
-        (uint64_t)((M >> 4 * 3) & 0xf) << 8 * 3 |\
-        (uint64_t)((M >> 4 * 4) & 0xf) << 8 * 4 |\
-        (uint64_t)((M >> 4 * 5) & 0xf) << 8 * 5 |\
-        (uint64_t)((M >> 4 * 6) & 0xf) << 8 * 6 |\
-        (uint64_t)((M >> 4 * 7) & 0xf) << 8 * 7,\
-        V, 0);\
-        V = vsetq_lane_u64(\
-        (uint64_t)((M >> 4 * 8)  & 0xf) << 8 * 0 |\
-        (uint64_t)((M >> 4 * 9)  & 0xf) << 8 * 1 |\
-        (uint64_t)((M >> 4 * 10) & 0xf) << 8 * 2 |\
-        (uint64_t)((M >> 4 * 11) & 0xf) << 8 * 3 |\
-        (uint64_t)((M >> 4 * 12) & 0xf) << 8 * 4 |\
-        (uint64_t)((M >> 4 * 13) & 0xf) << 8 * 5 |\
-        (uint64_t)((M >> 4 * 14) & 0xf) << 8 * 6 |\
-        (uint64_t)((M >> 4 * 15) & 0xf) << 8 * 7,\
-        V, 1);
+// split S-box bits into vector lanes
+uint8x16_t gift_64_vec_sbox_bits_pack(const uint64_t a)
+{
+        uint8x16_t v;
+        v = vsetq_lane_u64(
+        (uint64_t)((a >> 4 * 0) & 0xf) << 8 * 0 |
+        (uint64_t)((a >> 4 * 1) & 0xf) << 8 * 1 |
+        (uint64_t)((a >> 4 * 2) & 0xf) << 8 * 2 |
+        (uint64_t)((a >> 4 * 3) & 0xf) << 8 * 3 |
+        (uint64_t)((a >> 4 * 4) & 0xf) << 8 * 4 |
+        (uint64_t)((a >> 4 * 5) & 0xf) << 8 * 5 |
+        (uint64_t)((a >> 4 * 6) & 0xf) << 8 * 6 |
+        (uint64_t)((a >> 4 * 7) & 0xf) << 8 * 7, v, 0);
+
+        v = vsetq_lane_u64(
+        (uint64_t)((a >> 4 * 8)  & 0xf) << 8 * 0 |
+        (uint64_t)((a >> 4 * 9)  & 0xf) << 8 * 1 |
+        (uint64_t)((a >> 4 * 10) & 0xf) << 8 * 2 |
+        (uint64_t)((a >> 4 * 11) & 0xf) << 8 * 3 |
+        (uint64_t)((a >> 4 * 12) & 0xf) << 8 * 4 |
+        (uint64_t)((a >> 4 * 13) & 0xf) << 8 * 5 |
+        (uint64_t)((a >> 4 * 14) & 0xf) << 8 * 6 |
+        (uint64_t)((a >> 4 * 15) & 0xf) << 8 * 7, v, 1);
+
+        return v;
+}
+
+// merge S-box bits into single uint64_t
+uint64_t gift_64_vec_sbox_bits_unpack(const uint8x16_t v)
+{
+        uint64_t a = 0UL;
+        a |= (uint64_t)vgetq_lane_u8(v, 0) << 4 * 0;
+        a |= (uint64_t)vgetq_lane_u8(v, 1) << 4 * 1;
+        a |= (uint64_t)vgetq_lane_u8(v, 2) << 4 * 2;
+        a |= (uint64_t)vgetq_lane_u8(v, 3) << 4 * 3;
+        a |= (uint64_t)vgetq_lane_u8(v, 4) << 4 * 4;
+        a |= (uint64_t)vgetq_lane_u8(v, 5) << 4 * 5;
+        a |= (uint64_t)vgetq_lane_u8(v, 6) << 4 * 6;
+        a |= (uint64_t)vgetq_lane_u8(v, 7) << 4 * 7;
+        a |= (uint64_t)vgetq_lane_u8(v, 8) << 4 * 8;
+        a |= (uint64_t)vgetq_lane_u8(v, 9) << 4 * 9;
+        a |= (uint64_t)vgetq_lane_u8(v, 10) << 4 * 10;
+        a |= (uint64_t)vgetq_lane_u8(v, 11) << 4 * 11;
+        a |= (uint64_t)vgetq_lane_u8(v, 12) << 4 * 12;
+        a |= (uint64_t)vgetq_lane_u8(v, 13) << 4 * 13;
+        a |= (uint64_t)vgetq_lane_u8(v, 14) << 4 * 14;
+        a |= (uint64_t)vgetq_lane_u8(v, 15) << 4 * 15;
+
+        return a;
+}
 
 static const size_t perm_64[] = {
         0, 17, 34, 51, 48, 1, 18, 35, 32, 49, 2, 19, 16, 33, 50, 3,
@@ -72,15 +101,15 @@ uint8x16_t gift_64_vec_sbox_subcells_inv(const uint8x16_t cipher_state)
 
 uint8x16_t gift_64_vec_sbox_permute(const uint8x16_t cipher_state)
 {
-        // collect into 64-bit register (faster)
+        // collect individual bits into 64-bit register
         uint64_t new_cipher_state = 0UL;
-
-        // S-box 0-7
         uint64_t boxes[2];
         vst1q_u64(boxes, cipher_state);
+
+        // S-box 0-7
         for (size_t box = 0; box < 8; box++) {
                 for (size_t i = 0; i < 4; i++) {
-                        int bit = (boxes[0] >> (box * 8 + i)) & 0x1;
+                        const int bit = (boxes[0] >> (box * 8 + i)) & 0x1;
                         new_cipher_state |= (uint64_t)bit << perm_64[box * 4 + i];
                 }
         }
@@ -88,44 +117,38 @@ uint8x16_t gift_64_vec_sbox_permute(const uint8x16_t cipher_state)
         // S-box 8-15
         for (size_t box = 0; box < 8; box++) {
                 for (size_t i = 0; i < 4; i++) {
-                        int bit = (boxes[1] >> (box * 8 + i)) & 0x1;
+                        const int bit = (boxes[1] >> (box * 8 + i)) & 0x1;
                         new_cipher_state |= (uint64_t)bit << perm_64[(box + 8) * 4 + i];
                 }
         }
 
-        uint8x16_t ret;
-        U64_TO_V128(ret, new_cipher_state);
-
-        return ret;
+        return gift_64_vec_sbox_bits_pack(new_cipher_state);
 }
 
 uint8x16_t gift_64_vec_sbox_permute_inv(const uint8x16_t cipher_state)
 {
         // collect into 64-bit register (faster)
         uint64_t new_cipher_state = 0;
+        uint64_t boxes[2];
+        vst1q_u64(boxes, cipher_state);
 
         // S-box 0-7
-        uint64_t boxes = vgetq_lane_u64(cipher_state, 0);
         for (size_t box = 0; box < 8; box++) {
                 for (size_t i = 0; i < 4; i++) {
-                        int bit = (boxes >> (box * 8 + i)) & 0x1;
+                        const int bit = (boxes[0] >> (box * 8 + i)) & 0x1;
                         new_cipher_state |= (uint64_t)bit << perm_64_inv[box * 4 + i];
                 }
         }
 
         // S-box 8-15
-        boxes = vgetq_lane_u64(cipher_state, 1);
         for (size_t box = 0; box < 8; box++) {
                 for (size_t i = 0; i < 4; i++) {
-                        int bit = (boxes >> (box * 8 + i)) & 0x1;
+                        const int bit = (boxes[1] >> (box * 8 + i)) & 0x1;
                         new_cipher_state |= (uint64_t)bit << perm_64_inv[(box + 8) * 4 + i];
                 }
         }
 
-        uint8x16_t ret;
-        U64_TO_V128(ret, new_cipher_state);
-
-        return ret;
+        return gift_64_vec_sbox_bits_pack(new_cipher_state);
 }
 
 void gift_64_vec_sbox_generate_round_keys(uint8x16_t rks[ROUNDS_GIFT_64],
@@ -133,14 +156,14 @@ void gift_64_vec_sbox_generate_round_keys(uint8x16_t rks[ROUNDS_GIFT_64],
 {
         uint64_t key_state[] = {key[0], key[1]};
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
-                int v = (key_state[0] >> 0 ) & 0xffff;
-                int u = (key_state[0] >> 16) & 0xffff;
+                const int v = (key_state[0] >> 0 ) & 0xffff;
+                const int u = (key_state[0] >> 16) & 0xffff;
 
                 // add round key (RK=U||V)
                 uint64_t round_key = 0UL;
                 for (size_t i = 0; i < 16; i++) {
-                        int key_bit_v   = (v >> i)  & 0x1;
-                        int key_bit_u   = (u >> i)  & 0x1;
+                        const int key_bit_v   = (v >> i)  & 0x1;
+                        const int key_bit_u   = (u >> i)  & 0x1;
                         round_key ^= (uint64_t)key_bit_v << (i * 4 + 0);
                         round_key ^= (uint64_t)key_bit_u << (i * 4 + 1);
                 }
@@ -157,7 +180,7 @@ void gift_64_vec_sbox_generate_round_keys(uint8x16_t rks[ROUNDS_GIFT_64],
                 round_key ^= ((round_const[round] >> 5) & 0x1) << 23;
 
                 // pack into vector register
-                U64_TO_V128(rks[round], round_key)
+                rks[round] = gift_64_vec_sbox_bits_pack(round_key);
 
                 // update key state
                 int k0 = (key_state[0] >> 0 ) & 0xffffUL;
@@ -180,15 +203,11 @@ void gift_64_vec_sbox_init(void)
         sbox_vec_inv = vld1q_u64(sbox_vec_inv_u64);
 }
 
-uint64_t gift_64_vec_sbox_encrypt(const uint64_t m, const uint64_t key[2])
+uint64_t gift_64_vec_sbox_encrypt(const uint64_t m,
+                                  const uint8x16_t rks[restrict ROUNDS_GIFT_64])
 {
         // pack into vector register
-        uint8x16_t c;
-        U64_TO_V128(c, m);
-
-        // generate round keys
-        uint8x16_t rks[ROUNDS_GIFT_64];
-        gift_64_vec_sbox_generate_round_keys(rks, key);
+        uint8x16_t c = gift_64_vec_sbox_bits_pack(m);
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
@@ -198,36 +217,14 @@ uint64_t gift_64_vec_sbox_encrypt(const uint64_t m, const uint64_t key[2])
         }
 
         // unpack
-        uint64_t ret = 0UL;
-        ret |= (uint64_t)vgetq_lane_u8(c, 0) << 4 * 0;
-        ret |= (uint64_t)vgetq_lane_u8(c, 1) << 4 * 1;
-        ret |= (uint64_t)vgetq_lane_u8(c, 2) << 4 * 2;
-        ret |= (uint64_t)vgetq_lane_u8(c, 3) << 4 * 3;
-        ret |= (uint64_t)vgetq_lane_u8(c, 4) << 4 * 4;
-        ret |= (uint64_t)vgetq_lane_u8(c, 5) << 4 * 5;
-        ret |= (uint64_t)vgetq_lane_u8(c, 6) << 4 * 6;
-        ret |= (uint64_t)vgetq_lane_u8(c, 7) << 4 * 7;
-        ret |= (uint64_t)vgetq_lane_u8(c, 8) << 4 * 8;
-        ret |= (uint64_t)vgetq_lane_u8(c, 9) << 4 * 9;
-        ret |= (uint64_t)vgetq_lane_u8(c, 10) << 4 * 10;
-        ret |= (uint64_t)vgetq_lane_u8(c, 11) << 4 * 11;
-        ret |= (uint64_t)vgetq_lane_u8(c, 12) << 4 * 12;
-        ret |= (uint64_t)vgetq_lane_u8(c, 13) << 4 * 13;
-        ret |= (uint64_t)vgetq_lane_u8(c, 14) << 4 * 14;
-        ret |= (uint64_t)vgetq_lane_u8(c, 15) << 4 * 15;
-
-        return ret;
+        return gift_64_vec_sbox_bits_unpack(c);
 }
 
-uint64_t gift_64_vec_sbox_decrypt(const uint64_t c, const uint64_t key[2])
+uint64_t gift_64_vec_sbox_decrypt(const uint64_t c,
+                                  const uint8x16_t rks[restrict ROUNDS_GIFT_64])
 {
         // pack into vector register
-        uint8x16_t m;
-        U64_TO_V128(m, c);
-
-        // generate round keys
-        uint8x16_t rks[ROUNDS_GIFT_64];
-        gift_64_vec_sbox_generate_round_keys(rks, key);
+        uint8x16_t m = gift_64_vec_sbox_bits_pack(c);
 
         // round loop (in reverse)
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
@@ -237,23 +234,5 @@ uint64_t gift_64_vec_sbox_decrypt(const uint64_t c, const uint64_t key[2])
         }
 
         // unpack
-        uint64_t ret = 0UL;
-        ret |= (uint64_t)vgetq_lane_u8(m, 0) << 4 * 0;
-        ret |= (uint64_t)vgetq_lane_u8(m, 1) << 4 * 1;
-        ret |= (uint64_t)vgetq_lane_u8(m, 2) << 4 * 2;
-        ret |= (uint64_t)vgetq_lane_u8(m, 3) << 4 * 3;
-        ret |= (uint64_t)vgetq_lane_u8(m, 4) << 4 * 4;
-        ret |= (uint64_t)vgetq_lane_u8(m, 5) << 4 * 5;
-        ret |= (uint64_t)vgetq_lane_u8(m, 6) << 4 * 6;
-        ret |= (uint64_t)vgetq_lane_u8(m, 7) << 4 * 7;
-        ret |= (uint64_t)vgetq_lane_u8(m, 8) << 4 * 8;
-        ret |= (uint64_t)vgetq_lane_u8(m, 9) << 4 * 9;
-        ret |= (uint64_t)vgetq_lane_u8(m, 10) << 4 * 10;
-        ret |= (uint64_t)vgetq_lane_u8(m, 11) << 4 * 11;
-        ret |= (uint64_t)vgetq_lane_u8(m, 12) << 4 * 12;
-        ret |= (uint64_t)vgetq_lane_u8(m, 13) << 4 * 13;
-        ret |= (uint64_t)vgetq_lane_u8(m, 14) << 4 * 14;
-        ret |= (uint64_t)vgetq_lane_u8(m, 15) << 4 * 15;
-
-        return ret;
+        return gift_64_vec_sbox_bits_unpack(m);
 }

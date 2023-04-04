@@ -6,8 +6,12 @@ measurements and discuss advantages, disadvantages and possible use cases.
 \section{Benchmarks}
 
 Performance measurements were taken for each strategy as well as for naive
-reference implementations and are presented in cycles per byte (c/B) as well as
-constant throughput in MiB/s of the entire encryption strategy.
+reference implementations and are presented through latency $lat$ in cycles per
+byte (c/B) as well as constant throughput $thr$ in MiB/s of the entire
+encryption strategy. Round key derivation is measured separately. Measurements
+of all individual components like packing or permuting have to be viewed as
+upper bounds due to the aforementioned inlining, instruction reordering and
+pipelining (TODO REF HERE) taking place in the actual encryption function.
 
 The AArch64 defines system registers in addition to general-purpose registers
 which are used for system configuration and monitoring. One of these registers
@@ -15,41 +19,54 @@ is the performance monitor cycle count register \texttt{PMCCNTR} which counts
 processor clock cycles. Access from userspace is disabled by default and can be
 activated through a custom Linux kernel module by setting \texttt{PMUSERENR.EN}
 to 1. To minimize interference and because the cycle count register is
-core-local, we isolate one of the cores from the rest of the system for
-exclusive benchmarking use.
+core-local, we isolate and utilize one Cortex-A53 and Cortex-A73 core from the
+rest of the system for exclusive benchmarking purposes respectively by use of
+the \texttt{isolcpus} kernel command line parameter and \texttt{taskset}
+command utility.
 
 \subsection{GIFT}
 
 \begin{table}[h!]
     \centering
     \small
-    \begin{tabular}{llcc}
+    \begin{tabular}{llcccc}
         \toprule
-        Strategy & Function & Latency (c/B) & Total throughput (MiB/s) \\
+        & & \multicolumn{2}{c}{Cortex-A53} & \multicolumn{2}{c}{Cortex-A73} \\
+        \cmidrule(lr){3-4}\cmidrule(lr){5-6}
+        Strategy & Component & $lat$ (c/B) & $thr$ (MiB/s) & $lat$ (c/B) & $thr$ (MiB/s) \\
         \midrule
-        \multirow{2}{*}{Naive \texttt{GIFT-64}} & \texttt{round\_keys} & 191.17 & \multirow{2}{*}{throughput} \\
-                                                & \texttt{subcells} & 2.74 & \\
-                                                & \texttt{permute} & 21.96 & \\
-                                                & \texttt{encrypt} & 995.36 & \\
+        \multirow{2}{*}{Naive \texttt{GIFT-64}} & \texttt{round\_keys} & 223.54 & \multirow{2}{*}{1.22} & 190.34 & \multirow{2}{*}{2.33} \\
+                                                & \texttt{encrypt} & 1367.66 & &  830.49 & \\
+        \cmidrule(lr){2-2}
+                                                & \texttt{ subcells} & 4.64 & & 3.13 & \\
+                                                & \texttt{  permute} & 36.68 & & 21.09 & \\
         \midrule
-        \multirow{2}{*}{Naive \texttt{GIFT-128}} & \texttt{round\_keys} & 166.73 & \multirow{2}{*}{throughput} \\
-                                                 & \texttt{subcells} & 2.72 & \\
-                                                 & \texttt{permute} & 61.28 & \\
-                                                 & \texttt{encrypt} & 2786.88 & \\
+        \multirow{2}{*}{Naive \texttt{GIFT-128}} & \texttt{round\_keys} & 182.91 & \multirow{2}{*}{0.51} & 167.16 & \multirow{2}{*}{0.79} \\
+                                                 & \texttt{encrypt} & 3532.52 & & 2615.89 & \\
+        \cmidrule(lr){2-2}
+                                                 & \texttt{ subcells} & 6.91 & & 2.73 & \\
+                                                 & \texttt{ permute} & 82.68 & & 61.27 & \\
         \midrule
-        \multirow{2}{*}{Table-driven} & \texttt{round\_keys} & 190.42 & \multirow{2}{*}{throughput} \\
-                                                & \texttt{subperm} & 3.88 & \\
-                                                & \texttt{encrypt} & 312.97 & \\
+        \multirow{2}{*}{Table-driven} & \texttt{round\_keys} & 223.81 & \multirow{2}{*}{13.59} & 190.11 & \multirow{2}{*}{16.09} \\
+                                      & \texttt{encrypt} & 122.11 & & 119.62 & \\
+        \cmidrule(lr){2-2}
+                                      & \texttt{ subperm} & 5.15 & & 4.47 & \\
         \midrule
-        \multirow{2}{*}{\texttt{vperm} S-box} & \texttt{round\_keys} & 271.35 & \multirow{2}{*}{throughput} \\
-                                              & \texttt{subcells} & 1.12 & \\
-                                              & \texttt{permute} & 14.98 & \\
-                                              & \texttt{encrypt} & 761.18 & \\
+        \multirow{2}{*}{\texttt{vperm} S-box} & \texttt{round\_keys} & 308.12 & \multirow{2}{*}{2.53} & 270.80 & \multirow{2}{*}{3.93} \\
+                                              & \texttt{encrypt} & 658.95 & & 492.29 & \\
+        \cmidrule(lr){2-2}
+                                              & \texttt{ subcells} & 1.63 & & 1.13 & \\
+                                              & \texttt{ permute} & 22.71 & & 15.24 & \\
+                                              & \texttt{ pack} & 7.51 & & 2.94 & \\
+                                              & \texttt{ unpack} & 8.76 & & 5.89 & \\
         \midrule
-        \multirow{2}{*}{Bitsliced} & \texttt{round\_keys} & 7.69 & \multirow{2}{*}{throughput} \\
-                                   & \texttt{subcells} & 0.28 & \\
-                                   & \texttt{permute} & 0.11 & \\
-                                   & \texttt{encrypt} & 21.38 & \\
+        \multirow{2}{*}{Bitsliced} & \texttt{round\_keys} & 10.13 & \multirow{2}{*}{111.89} & 7.66 & \multirow{2}{*}{154.21} \\
+                                   & \texttt{encrypt} & 16.22 & & 13.51 & \\
+        \cmidrule(lr){2-2}
+                                   & \texttt{ subcells} & 0.41 & & 0.18 & \\
+                                   & \texttt{ permute} & 0.39 & & 0.09 & \\
+                                   & \texttt{ pack} & 1.48 & & 1.01 & \\
+                                   & \texttt{ unpack} & 1.49 & & 1.01 & \\
         \bottomrule
     \end{tabular}
     \caption{Benchmarks for \texttt{GIFT}}

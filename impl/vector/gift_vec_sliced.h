@@ -7,9 +7,10 @@
 #define ROUNDS_GIFT_64 28
 
 // expose for benchmarking
-uint8x16_t shl(uint8x16_t v, int n);
-uint8x16_t shr(uint8x16_t v, int n);
-void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b, uint8x16_t m, int n);
+uint8x16_t shl(const uint8x16_t v, const int n);
+uint8x16_t shr(const uint8x16_t v, const int n);
+void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b,
+                                 const uint8x16_t m, const int n);
 void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2]);
 void gift_64_vec_sliced_bits_unpack(uint8x16x4_t m[restrict 2]);
 
@@ -24,9 +25,9 @@ void gift_64_vec_sliced_init(void);
 
 void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
                                 const uint64_t m[restrict 16],
-                                const uint64_t key[restrict 2]);
+                                const uint8x16x4_t rks[restrict ROUNDS_GIFT_64][2]);
 void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
                                 const uint64_t c[restrict 16],
-                                const uint64_t key[restrict 2]);
+                                const uint8x16x4_t rks[restrict ROUNDS_GIFT_64][2]);
 
 #endif

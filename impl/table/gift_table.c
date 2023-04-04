@@ -86,13 +86,10 @@ uint64_t gift_64_table_subperm(const uint64_t cipher_state)
         return new_cipher_state;
 }
 
-uint64_t gift_64_table_encrypt(const uint64_t m, const uint64_t key[restrict 2])
+uint64_t gift_64_table_encrypt(const uint64_t m,
+                               const uint64_t rks[restrict ROUNDS_GIFT_64])
 {
         uint64_t c = m;
-
-        // generate round keys
-        uint64_t rks[ROUNDS_GIFT_64];
-        gift_64_table_generate_round_keys(rks, key);
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {

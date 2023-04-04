@@ -230,13 +230,9 @@ void gift_128_generate_round_keys(uint8_t round_keys[restrict ROUNDS_GIFT_128][3
 }
 
 uint64_t gift_64_encrypt(const uint64_t m,
-                         const uint64_t key[restrict 2])
+                         const uint64_t round_keys[restrict ROUNDS_GIFT_64])
 {
         uint64_t c = m;
-
-        // generate round keys
-        uint64_t round_keys[ROUNDS_GIFT_64];
-        gift_64_generate_round_keys(round_keys, key);
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
@@ -249,13 +245,9 @@ uint64_t gift_64_encrypt(const uint64_t m,
 }
 
 uint64_t gift_64_decrypt(const uint64_t c,
-                         const uint64_t key[restrict 2])
+                         const uint64_t round_keys[restrict ROUNDS_GIFT_64])
 {
         uint64_t m = c;
-
-        // generate round keys
-        uint64_t round_keys[ROUNDS_GIFT_64];
-        gift_64_generate_round_keys(round_keys, key);
 
         // round loop (in reverse)
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
@@ -270,16 +262,12 @@ uint64_t gift_64_decrypt(const uint64_t c,
 
 void gift_128_encrypt(uint8_t c_[restrict 16],
                       const uint8_t m[restrict 16],
-                      const uint64_t key[restrict 2])
+                      const uint8_t round_keys[restrict ROUNDS_GIFT_128][32])
 {
         uint8_t c[32]; // one byte per s-box
         for (size_t i = 0; i < 32; i++) {
                 c[i] = (m[i / 2] >> (i % 2) * 4) & 0xf;
         }
-
-        // generate round keys
-        uint8_t round_keys[ROUNDS_GIFT_128][32];
-        gift_128_generate_round_keys(round_keys, key);
 
         // round loop
         for (int round = 0; round < ROUNDS_GIFT_128; round++) {
@@ -298,16 +286,12 @@ void gift_128_encrypt(uint8_t c_[restrict 16],
 
 void gift_128_decrypt(uint8_t m_[restrict 16],
                       const uint8_t c[restrict 16],
-                      const uint64_t key[restrict 2])
+                      const uint8_t round_keys[restrict ROUNDS_GIFT_128][32])
 {
         uint8_t m[32]; // one byte per s-box
         for (size_t i = 0; i < 32; i++) {
                 m[i] = (c[i / 2] >> (i % 2) * 4) & 0xf;
         }
-
-        // generate round keys
-        uint8_t round_keys[ROUNDS_GIFT_128][32];
-        gift_128_generate_round_keys(round_keys, key);
 
         // round loop (in reverse)
         for (int round = ROUNDS_GIFT_128 - 1; round >= 0; round--) {

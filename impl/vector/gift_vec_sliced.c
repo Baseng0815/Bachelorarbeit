@@ -47,28 +47,29 @@ static const int round_const[] = {
         0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A, 0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
 };
 
-uint8x16_t shl(uint8x16_t v, int n)
+uint8x16_t shl(const uint8x16_t v, const int n)
 {
         uint64_t l[2];
         vst1q_u64(l, v);
         l[1] = (l[1] << n) | (l[0] >> (64 - n));
         l[0] <<= n;
-        return vreinterpretq_u8_u64(vld1q_u64(l));
+        return vld1q_u64(l);
 }
 
-uint8x16_t shr(uint8x16_t v, int n)
+uint8x16_t shr(const uint8x16_t v, const int n)
 {
         uint64_t l[2];
         vst1q_u64(l, v);
         l[0] = l[0] >> n | (((l[1] << (64 - n)) >> (64 - n)) << (64 - n));
         l[1] >>= n;
-        return vreinterpretq_u8_u64(vld1q_u64(l));
+        return vld1q_u64(l);
 }
 
-void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b, uint8x16_t m, int n)
+void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b,
+                                 const uint8x16_t m, const int n)
 {
 
-        uint8x16_t t = vandq_u8(veorq_u8(shr(*a, n), *b), m);
+        const uint8x16_t t = vandq_u8(veorq_u8(shr(*a, n), *b), m);
         *b = veorq_u8(*b, t);
         *a = veorq_u8(*a, shl(t, n));
 }
@@ -94,7 +95,7 @@ void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2])
 
         // same plaintext slice bits into same register (so we only have to do
         // what we are doing here once instead of every round)
-        uint8x16x2_t pairs[4] = {
+        const uint8x16x2_t pairs[4] = {
                 { .val = { m[0].val[0], m[1].val[0] }},
                 { .val = { m[0].val[1], m[1].val[1] }},
                 { .val = { m[0].val[2], m[1].val[2] }},
@@ -114,7 +115,7 @@ void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2])
 
 void gift_64_vec_sliced_bits_unpack(uint8x16x4_t m[restrict 2])
 {
-        uint8x16x2_t pairs[4] = {
+        const uint8x16x2_t pairs[4] = {
                 { .val = { m[0].val[0], m[1].val[0] }},
                 { .val = { m[0].val[1], m[1].val[1] }},
                 { .val = { m[0].val[2], m[1].val[2] }},
@@ -228,8 +229,8 @@ void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t rks[restrict ROUNDS_GIF
 {
         uint64_t key_state[] = {key[0], key[1]};
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
-                int v = (key_state[0] >> 0 ) & 0xffff;
-                int u = (key_state[0] >> 16) & 0xffff;
+                const int v = (key_state[0] >> 0 ) & 0xffff;
+                const int u = (key_state[0] >> 16) & 0xffff;
 
                 // add round key (RK=U||V)
                 // (slice 2 stays unused)
@@ -307,15 +308,12 @@ void gift_64_vec_sliced_init(void)
 
 void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
                                 const uint64_t m[restrict 16],
-                                const uint64_t key[restrict 2])
+                                const uint8x16x4_t rks[restrict ROUNDS_GIFT_64][2])
 {
         uint8x16x4_t s[2];
         s[0] = vld1q_u8_x4((uint8_t*)&m[0]);
         s[1] = vld1q_u8_x4((uint8_t*)&m[8]);
         gift_64_vec_sliced_bits_pack(s);
-
-        uint8x16x4_t rks[ROUNDS_GIFT_64][2];
-        gift_64_vec_sliced_generate_round_keys(rks, key);
 
         for (int round = 0; round < ROUNDS_GIFT_64; round++) {
                 gift_64_vec_sliced_subcells(s);
@@ -338,15 +336,12 @@ void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
 
 void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
                                 const uint64_t c[restrict 16],
-                                const uint64_t key[restrict 2])
+                                const uint8x16x4_t rks[restrict ROUNDS_GIFT_64][2])
 {
         uint8x16x4_t s[2];
         s[0] = vld1q_u8_x4((uint8_t*)&c[0]);
         s[1] = vld1q_u8_x4((uint8_t*)&c[8]);
         gift_64_vec_sliced_bits_pack(s);
-
-        uint8x16x4_t rks[ROUNDS_GIFT_64][2];
-        gift_64_vec_sliced_generate_round_keys(rks, key);
 
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
                 s[0].val[0] = veorq_u8(s[0].val[0], rks[round][0].val[0]);
