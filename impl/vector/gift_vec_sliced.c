@@ -266,12 +266,12 @@ void gift_64_vec_sliced_generate_round_keys(uint8x16x4_t rks[restrict ROUNDS_GIF
                 }
 
                 rks[round][0].val[0] = vsetq_lane_u64(rk[0], rks[round][0].val[0], 0);
-                rks[round][0].val[0] = vsetq_lane_u64(rk[1], rks[round][0].val[0], 0);
+                rks[round][0].val[0] = vsetq_lane_u64(rk[1], rks[round][0].val[0], 1);
                 rks[round][0].val[1] = vsetq_lane_u64(rk[2], rks[round][0].val[1], 0);
-                rks[round][0].val[1] = vsetq_lane_u64(rk[3], rks[round][0].val[1], 0);
+                rks[round][0].val[1] = vsetq_lane_u64(rk[3], rks[round][0].val[1], 1);
                 rks[round][0].val[2] = vdupq_n_u8(0);
                 rks[round][0].val[3] = vsetq_lane_u64(rk[4], rks[round][0].val[3], 0);
-                rks[round][0].val[3] = vsetq_lane_u64(rk[5], rks[round][0].val[3], 0);
+                rks[round][0].val[3] = vsetq_lane_u64(rk[5], rks[round][0].val[3], 1);
                 rks[round][1]        = rks[round][0];
 
                 // update key state
