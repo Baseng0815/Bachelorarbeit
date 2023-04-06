@@ -44,7 +44,10 @@ void test_gift_64(void)
         uint64_t m = 0x4dcfd3bdd61810f0UL;
         uint64_t c_expected = 0xb11d30b8d39763e1UL;
         uint64_t c;
-        c = gift_64_encrypt(m, key);
+
+        uint64_t rks[ROUNDS_GIFT_64];
+        gift_64_generate_round_keys(rks, key);
+        c = gift_64_encrypt(m, rks);
         ASSERT_EQUALS(c, c_expected);
         return;
 
@@ -55,8 +58,9 @@ void test_gift_64(void)
                 m_rand((uint8_t*)&m, 8);
                 memset(&m, 0, sizeof(m));
 
-                c = gift_64_encrypt(m, key);
-                uint64_t m_actual = gift_64_decrypt(c, key);
+                gift_64_generate_round_keys(rks, key);
+                c = gift_64_encrypt(m, rks);
+                uint64_t m_actual = gift_64_decrypt(c, rks);
                 ASSERT_EQUALS(m, m_actual);
         }
 }
@@ -75,7 +79,10 @@ void test_gift_128(void)
                 0x06, 0x7b, 0xc0, 0x97, 0xa6, 0x38, 0x1f, 0xe8
         };
         uint8_t c[16];
-        gift_128_encrypt(c, m, key);
+
+        uint8_t rks[ROUNDS_GIFT_128][32];
+        gift_128_generate_round_keys(rks, key);
+        gift_128_encrypt(c, m, rks);
         ASSERT_TRUE(memcmp(c, c_expected, 16) == 0);
 
         // test encrypt-decrypt
@@ -84,9 +91,10 @@ void test_gift_128(void)
                 key_rand(key);
                 m_rand(m, 16);
 
-                gift_128_encrypt(c, m, key);
+                gift_128_generate_round_keys(rks, key);
+                gift_128_encrypt(c, m, rks);
                 uint8_t m_actual[16];
-                gift_128_decrypt(m_actual, c, key);
+                gift_128_decrypt(m_actual, c, rks);
                 ASSERT_TRUE(memcmp(m, m_actual, 8) == 0);
         }
 }
@@ -96,23 +104,17 @@ void test_gift_64_sliced(void)
         // test encrypt to known value (8 times the same)
         printf("testing GIFT_64_SLICED encryption to known value...\n");
         uint64_t key[2] = { 0x5085772fe6916616UL, 0x3c9d8c18fdd20608UL };
-        uint8_t m[8][8] = {
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d },
-                { 0xf0, 0x10, 0x18, 0xd6, 0xbd, 0xd3, 0xcf, 0x4d }
+        uint64_t m[8] = {
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL,
+                0x4dcfd3bdd61810f0UL, 0x4dcfd3bdd61810f0UL
         };
-        uint8_t c_expected[8] = {
-                0xe1, 0x63, 0x97, 0xd3, 0xb8, 0x30, 0x1d, 0xb1
-        };
-        uint8_t c[8][8];
+        uint64_t c_expected = 0xb11d30b8d39763e1UL;
+        uint64_t c[8];
         gift_64_sliced_encrypt(c, m, key);
         for (size_t i = 0; i < 8; i++) {
-                ASSERT_TRUE(memcmp(&c[i][0], c_expected, 8) == 0);
+                ASSERT_TRUE(memcmp(&c[i], &c_expected, 8) == 0);
         }
 
         // test encrypt-decrypt
@@ -120,11 +122,11 @@ void test_gift_64_sliced(void)
         for (int i = 0; i < 100; i++) {
                 key_rand(key);
                 for (size_t j = 0; j < 8; j++) {
-                        m_rand(m[j], sizeof(m[j]));
+                        m_rand((uint8_t*)&m, sizeof(m));
                 }
 
                 gift_64_sliced_encrypt(c, m, key);
-                uint8_t m_actual[8][8];
+                uint64_t m_actual[8];
                 gift_64_sliced_decrypt(m_actual, c, key);
                 ASSERT_TRUE(memcmp(m_actual, m, 8 * 8) == 0);
         }
@@ -165,7 +167,10 @@ void test_gift_64_vec_sbox(void)
         uint64_t m = 0x4dcfd3bdd61810f0UL;
         uint64_t c_expected = 0xb11d30b8d39763e1UL;
         uint64_t c;
-        c = gift_64_vec_sbox_encrypt(m, key);
+
+        uint8x16_t rks[ROUNDS_GIFT_64];
+        gift_64_vec_sbox_generate_round_keys(rks, key);
+        c = gift_64_vec_sbox_encrypt(m, rks);
         ASSERT_EQUALS(c, c_expected);
 
         // test encrypt-decrypt
@@ -174,9 +179,10 @@ void test_gift_64_vec_sbox(void)
                 key_rand(key);
                 m_rand((uint8_t*)&m, sizeof(m));
 
-                c = gift_64_vec_sbox_encrypt(m, key);
+                gift_64_vec_sbox_generate_round_keys(rks, key);
+                c = gift_64_vec_sbox_encrypt(m, rks);
                 // only encryption for table approach
-                uint64_t m_actual = gift_64_vec_sbox_decrypt(c, key);
+                uint64_t m_actual = gift_64_vec_sbox_decrypt(c, rks);
                 ASSERT_EQUALS(m, m_actual);
         }
 }
@@ -238,7 +244,9 @@ void test_gift_64_vec_sliced(void)
         };
         uint64_t c_expected = 0xb11d30b8d39763e1UL;
         uint64_t c[16];
-        gift_64_vec_sliced_encrypt(c, m, key);
+        uint8x16x4_t rks[ROUNDS_GIFT_64][2];
+        gift_64_vec_sliced_generate_round_keys(rks, key);
+        gift_64_vec_sliced_encrypt(c, m, rks);
         ASSERT_EQUALS(c[0], c_expected);
         ASSERT_EQUALS(c[1], c_expected);
 
@@ -249,10 +257,11 @@ void test_gift_64_vec_sliced(void)
                 m_rand((uint8_t*)m, sizeof(m));
                 memset(m, 0, sizeof(m));
 
-                gift_64_vec_sliced_encrypt(c, m, key);
+                gift_64_vec_sliced_generate_round_keys(rks, key);
+                gift_64_vec_sliced_encrypt(c, m, rks);
                 // only encryption for table approach
                 uint64_t m_actual[16];
-                gift_64_vec_sliced_decrypt(m_actual, c, key);
+                gift_64_vec_sliced_decrypt(m_actual, c, rks);
                 ASSERT_TRUE(memcmp(m, m_actual, sizeof(m_actual)) == 0);
         }
 }

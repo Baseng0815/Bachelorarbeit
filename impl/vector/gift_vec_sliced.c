@@ -60,7 +60,7 @@ uint8x16_t shr(const uint8x16_t v, const int n)
 {
         uint64_t l[2];
         vst1q_u64(l, v);
-        l[0] = l[0] >> n | (((l[1] << (64 - n)) >> (64 - n)) << (64 - n));
+        l[0] = l[0] >> n | (l[1] << (64 - n));
         l[1] >>= n;
         return vld1q_u64(l);
 }

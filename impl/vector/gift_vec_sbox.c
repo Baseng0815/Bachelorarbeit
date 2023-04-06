@@ -106,19 +106,10 @@ uint8x16_t gift_64_vec_sbox_permute(const uint8x16_t cipher_state)
         uint64_t boxes[2];
         vst1q_u64(boxes, cipher_state);
 
-        // S-box 0-7
-        for (size_t box = 0; box < 8; box++) {
+        for (size_t box = 0; box < 16; box++) {
                 for (size_t i = 0; i < 4; i++) {
-                        const int bit = (boxes[0] >> (box * 8 + i)) & 0x1;
+                        const int bit = (boxes[box / 8] >> ((box % 8) * 8 + i)) & 0x1;
                         new_cipher_state |= (uint64_t)bit << perm_64[box * 4 + i];
-                }
-        }
-
-        // S-box 8-15
-        for (size_t box = 0; box < 8; box++) {
-                for (size_t i = 0; i < 4; i++) {
-                        const int bit = (boxes[1] >> (box * 8 + i)) & 0x1;
-                        new_cipher_state |= (uint64_t)bit << perm_64[(box + 8) * 4 + i];
                 }
         }
 
