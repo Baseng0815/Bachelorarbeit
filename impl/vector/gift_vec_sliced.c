@@ -319,6 +319,7 @@ void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
                 gift_64_vec_sliced_subcells(s);
                 gift_64_vec_sliced_permute(s);
 
+                // round key addition
                 s[0].val[0] = veorq_u8(s[0].val[0], rks[round][0].val[0]);
                 s[0].val[1] = veorq_u8(s[0].val[1], rks[round][0].val[1]);
                 s[0].val[2] = veorq_u8(s[0].val[2], rks[round][0].val[2]);
@@ -344,6 +345,7 @@ void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
         gift_64_vec_sliced_bits_pack(s);
 
         for (int round = ROUNDS_GIFT_64 - 1; round >= 0; round--) {
+                // round key addition
                 s[0].val[0] = veorq_u8(s[0].val[0], rks[round][0].val[0]);
                 s[0].val[1] = veorq_u8(s[0].val[1], rks[round][0].val[1]);
                 s[0].val[2] = veorq_u8(s[0].val[2], rks[round][0].val[2]);

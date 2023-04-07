@@ -131,11 +131,12 @@ essential in areas like consumer electronics or industrial and IoT
 applications, the need for low-power, high-performance microprocessors has
 increased steadily. With more than 250 billion chips shipped, semiconductors
 designed by ARM power 95\% of mobile devices and have found a great many
-applications due to their high performance and low power consumption. The
-ODROID-N2+\cite{odroidn2} development board we are using is based on the big.LITTLE
-architecture and is powered by a quad-core ARM Cortex-A73 processor and a
-weaker dual-core ARM Cortex-A53 for power efficiency. Both these processors are
-part of the eight generation of ARM designs known as ARMv8\cite{armv8:2013}.
+applications due to their high performance and low power
+consumption\cite{armcompany}. The ODROID-N2+\cite{odroidn2} development board
+we are using is based on the big.LITTLE architecture and is powered by a
+quad-core ARM Cortex-A73 processor and a weaker dual-core ARM Cortex-A53 for
+power efficiency. Both these processors are part of the eight generation of ARM
+designs known as ARMv8\cite{armv8:2013}.
 
 ARMv8 defines three architecture profiles for different use cases as well as
 dynamic execution states with corresponding instruction sets. This work will
@@ -192,21 +193,20 @@ overwriting the first input register.
         \midrule
         Base register & \texttt{LDR W0, [X1]} & \texttt{W0 = *(X1);} \\
         Offset & \texttt{LDR W0, [X1, \#12]} & \texttt{W0 = *(X1 + 12);} \\
-        Pre-indexing & \texttt{LDR W0, [X1, \#12]!} & \texttt{X1 += 12; W0 = *(X1)} \\
-        Post-indexing & \texttt{LDR W0, [X1], \#12} & \texttt{W0 = *(X1); X1 += 12} \\
+        Pre-indexing & \texttt{LDR W0, [X1, \#12]!} & \texttt{X1 += 12; W0 = *(X1);} \\
+        Post-indexing & \texttt{LDR W0, [X1], \#12} & \texttt{W0 = *(X1); X1 += 12;} \\
         \bottomrule
     \end{tabularx}
-    \caption{AArch64 addressing modes}
+    \caption{A64 addressing modes}
 \end{table}
 
 \subsection{NEON}
 \label{ss:neon}
 
-ARMv8 supports single-instruction, multiple-data ARMv8 supports
-single-instruction, multiple-data (SIMD) processing. These systems allow the
-programmer to store multiple pieces of data in a vector and work on them in
-parallel to speed up calculations. The A64 instruction set defines two possible
-SIMD implementations.
+ARMv8 supports single-instruction, multiple-data (SIMD) processing. These systems
+allow the programmer to store multiple pieces of data in a vector and work on
+them in parallel to speed up calculations. The A64 instruction set defines two
+possible SIMD implementations:
 
 \begin{enumerate}
     \item Advanced SIMD, known as NEON
@@ -217,21 +217,21 @@ We will take a look at NEON as this is the type of vector processing supported
 by the Cortex-A73 processor.
 
 The register file of the NEON unit is made up of 32 quad-word (128-bit)
-registers \texttt{V[0-31]}, each extending the standard 64-bit floating-point
-registers \mbox{\texttt{D[0-31]}}. These registers are divided into equally
-sized lanes on which the vector instructions operate. Valid ways to interpret
-for example the register \texttt{V0} are:
+registers \texttt{V0-V31}, each extending the standard 64-bit floating-point
+registers \mbox{\texttt{D0-31}}. These registers are divided into equally sized
+lanes on which vector instructions operate. Figure \ref{fig:regdivs} shows
+valid ways to interpret the register \texttt{V0}.
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=\textwidth]{Figures/V_register.pdf}
     \caption{Divisions of the V0 register}
+    \label{fig:regdivs}
 \end{figure}
 
 NEON instructions interpret their operands' layouts (i.e. lane count and width)
-through the use of suffixes such as \texttt{.4S} or \texttt{.8H}. For example,
-adding eight 16-bit halfwords from register \texttt{V1} and \texttt{V2}
-together and storing the result in \texttt{V0} can be done as follows:
+through the use of suffixes such as \texttt{.4S} or \texttt{.8H}. Adding eight
+16-bit halfwords stored in \texttt{V1} and \texttt{V2} can be done as follows:
 
 \begin{center}
     \texttt{ADD V0.8H, V1.8H, V2.8H}
@@ -278,7 +278,7 @@ also array types: \\
     \footnotesize
     \begin{tabularx}{\textwidth}{llX}
         \toprule
-        Intrinsic && Description \\
+        Intrinsic && Summary \\
         \midrule
         \texttt{uint64\_t} & \texttt{vgetq\_lane\_u64(void)} & Extract a single lane \\
         \midrule

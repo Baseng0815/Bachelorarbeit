@@ -146,7 +146,7 @@ instead of just 1.
 
 Permutation (\texttt{tbl}) and round key addition (\texttt{eor}) instructions
 are interleaved. The compiler recognizes data dependencies and can therefore
-proceed with round key addition directly after a slice has been permutated
+proceed with round key addition immediately after a slice has been permuted
 without needing to wait for all permutations to finish. This is only logical
 considering the inner workings of the instruction pipeline: by interleaving
 NEON with regular logic and load instructions, the execution units are filled
@@ -157,7 +157,7 @@ assuming all round keys are stored in the L1 cache, loading a
 floating-point/vector register takes 5 cycles. After the load has been
 dispatched to the load execution unit in line \ref{lst:floatload}, the
 processor happily continues chugging away at the instruction stream by issuing
-\texttt{tbl} and \texttt{mvn} $\mu$-ops to other execution units.
+\texttt{tbl} and \texttt{mvn} $\mu$ops to other execution units.
 
 These kinds of optimizations are pervasive when programming using higher level
 languages like C and modern-day compilers more often than not outperform even
