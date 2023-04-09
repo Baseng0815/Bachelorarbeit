@@ -162,10 +162,10 @@ static const uint8_t s4[256] =
 };
 
 // rotates for values larger than 64 are done by swapping array elements
-#define rol128(_b, _a, _n){\
-        uint64_t _t = (_a) >> (64 - (_n));\
-        (_a) = ((_a) << (_n)) | ((_b) >> (64 - (_n)));\
-        (_b) = ((_b) << (_n)) | _t;\
+#define rol128(_a, _b, _n){\
+        uint64_t _t = _b;\
+        (_b) = ((_b) << (_n)) | ((_a) >> (64 - (_n)));\
+        (_a) = ((_a) << (_n)) | ((_t) >> (64 - (_n)));\
 }
 
 #define rol32expr(_a, _n)\
@@ -174,14 +174,14 @@ static const uint8_t s4[256] =
 uint64_t camellia_naive_S(uint64_t X)
 {
         uint64_t result = 0UL;
-        result |= (uint64_t)s1[(X >> 0 ) & 0xff] << 0;
-        result |= (uint64_t)s4[(X >> 8 ) & 0xff] << 8;
-        result |= (uint64_t)s3[(X >> 16) & 0xff] << 16;
-        result |= (uint64_t)s2[(X >> 24) & 0xff] << 24;
-        result |= (uint64_t)s4[(X >> 32) & 0xff] << 32;
-        result |= (uint64_t)s3[(X >> 40) & 0xff] << 40;
-        result |= (uint64_t)s2[(X >> 48) & 0xff] << 48;
         result |= (uint64_t)s1[(X >> 56) & 0xff] << 56;
+        result |= (uint64_t)s2[(X >> 48) & 0xff] << 48;
+        result |= (uint64_t)s3[(X >> 40) & 0xff] << 40;
+        result |= (uint64_t)s4[(X >> 32) & 0xff] << 32;
+        result |= (uint64_t)s2[(X >> 24) & 0xff] << 24;
+        result |= (uint64_t)s3[(X >> 16) & 0xff] << 16;
+        result |= (uint64_t)s4[(X >> 8 ) & 0xff] << 8;
+        result |= (uint64_t)s1[(X >> 0 ) & 0xff] << 0;
 
         return result;
 }
@@ -193,18 +193,19 @@ uint64_t camellia_naive_P(uint64_t X)
         uint8_t z3 = X >> 40;
         uint8_t z4 = X >> 32;
         uint8_t z5 = X >> 24;
-        uint8_t z6 = X >> 16; uint8_t z7 = X >> 8;
+        uint8_t z6 = X >> 16;
+        uint8_t z7 = X >> 8;
         uint8_t z8 = X >> 0;
 
         uint64_t result = 0UL;
-        result |= (uint64_t)(z1 ^ z4 ^ z5 ^ z6 ^ z7) << 0;
-        result |= (uint64_t)(z3 ^ z4 ^ z5 ^ z6 ^ z8) << 8;
-        result |= (uint64_t)(z2 ^ z3 ^ z5 ^ z7 ^ z8) << 16;
-        result |= (uint64_t)(z1 ^ z2 ^ z6 ^ z7 ^ z8) << 24;
-        result |= (uint64_t)(z2 ^ z3 ^ z4 ^ z5 ^ z6 ^ z7) << 32;
-        result |= (uint64_t)(z1 ^ z2 ^ z3 ^ z5 ^ z6 ^ z8) << 40;
-        result |= (uint64_t)(z1 ^ z2 ^ z4 ^ z5 ^ z7 ^ z8) << 48;
         result |= (uint64_t)(z1 ^ z3 ^ z4 ^ z6 ^ z7 ^ z8) << 56;
+        result |= (uint64_t)(z1 ^ z2 ^ z4 ^ z5 ^ z7 ^ z8) << 48;
+        result |= (uint64_t)(z1 ^ z2 ^ z3 ^ z5 ^ z6 ^ z8) << 40;
+        result |= (uint64_t)(z2 ^ z3 ^ z4 ^ z5 ^ z6 ^ z7) << 32;
+        result |= (uint64_t)(z1 ^ z2 ^ z6 ^ z7 ^ z8) << 24;
+        result |= (uint64_t)(z2 ^ z3 ^ z5 ^ z7 ^ z8) << 16;
+        result |= (uint64_t)(z3 ^ z4 ^ z5 ^ z6 ^ z8) << 8;
+        result |= (uint64_t)(z1 ^ z4 ^ z5 ^ z6 ^ z7) << 0;
 
         return result;
 }
@@ -216,50 +217,50 @@ uint64_t camellia_naive_F(uint64_t X, uint64_t k)
 
 uint64_t camellia_naive_FL(uint64_t X, uint64_t kl)
 {
-        uint32_t XL = (X >> 32);
-        uint32_t XR = X & 0xffffffff;
+        uint32_t XL = (X >> 0);
+        uint32_t XR = (X >> 32);
 
-        uint32_t klL = (kl >> 32);
-        uint32_t klR = kl & 0xffffffff;
+        uint32_t klL = (kl >> 0);
+        uint32_t klR = (kl >> 32);
 
         uint32_t YR = rol32expr(XL & klL, 1) ^ XR;
         uint32_t YL = (YR | klR) ^ XL;
 
-        return (uint64_t)YR | ((uint64_t)YL << 32);
+        return (uint64_t)YL | ((uint64_t)YR << 32);
 }
 
 uint64_t camellia_naive_FL_inv(uint64_t Y, uint64_t kl)
 {
-        uint32_t YL = (Y >> 32);
-        uint32_t YR = Y & 0xffffffff;
+        uint32_t YL = (Y >> 0);
+        uint32_t YR = (Y >> 32);
 
-        uint32_t klL = (kl >> 32);
-        uint32_t klR = kl & 0xffffffff;
+        uint32_t klL = (kl >> 0);
+        uint32_t klR = (kl >> 32);
 
         uint32_t XL = (YR | klR) ^ YL;
         uint32_t XR = rol32expr(XL & klL, 1) ^ YR;
 
-        return (uint64_t)XR | ((uint64_t)XL << 32);
+        return (uint64_t)XL | ((uint64_t)XR << 32);
 }
 
 void camellia_naive_feistel_round(uint64_t state[2], uint64_t kr)
 {
-        uint64_t Lr = state[0] ^ camellia_naive_F(state[1], kr);
-        state[0] = state[1];
-        state[1] = Lr;
+        uint64_t Lr = state[1] ^ camellia_naive_F(state[0], kr);
+        state[1] = state[0];
+        state[0] = Lr;
 }
 
 void camellia_naive_feistel_round_inv(uint64_t state[2], uint64_t kr)
 {
-        uint64_t Rr1 = state[1] ^ camellia_naive_F(state[0], kr);
-        state[1] = state[0];
-        state[0] = Rr1;
+        uint64_t Rr1 = state[0] ^ camellia_naive_F(state[1], kr);
+        state[0] = state[1];
+        state[1] = Rr1;
 }
 
 void camellia_naive_generate_round_keys(const uint64_t key[restrict 2],
                                         struct camellia_keytable *restrict rks)
 {
-        uint64_t KL[2], KA[2], KB[2];
+        uint64_t KL[2], KA[2];
         memcpy(KL, key, sizeof(KL));
         memcpy(KA, key, sizeof(KA));
 
@@ -270,50 +271,47 @@ void camellia_naive_generate_round_keys(const uint64_t key[restrict 2],
         camellia_naive_feistel_round(KA, keysched_const[2]);
         camellia_naive_feistel_round(KA, keysched_const[3]);
 
-        // compute KB
-        memcpy(KB, KA, sizeof(KB));
-        camellia_naive_feistel_round(KB, keysched_const[4]);
-        camellia_naive_feistel_round(KB, keysched_const[5]);
+        // KB not needed for 128 bit
 
         // pre-whitening
-        rks->kw[0] = KL[1]; rks->kw[1] = KL[0];
+        rks->kw[0] = KL[0]; rks->kw[1] = KL[1];
 
         // feistel rounds 0-5
-        rks->ku[0] = KA[1]; rks->ku[1] = KA[0];
-        rol128(KL[1], KL[0], 15); // KL << 15
-        rks->ku[2] = KL[1]; rks->ku[3] = KL[0];
-        rol128(KA[1], KA[0], 15); // KA << 15
-        rks->ku[4] = KA[1]; rks->ku[5] = KA[0];
+        rks->ku[0] = KA[0]; rks->ku[1] = KA[1];
+        rol128(KL[0], KL[1], 15); // KL << 15
+        rks->ku[2] = KL[0]; rks->ku[3] = KL[1];
+        rol128(KA[0], KA[1], 15); // KA << 15
+        rks->ku[4] = KA[0]; rks->ku[5] = KA[1];
 
         // FL/FL-1
-        rol128(KA[1], KA[0], 15); // KA << 30
-        rks->kl[0] = KA[1]; rks->kl[1] = KA[0];
+        rol128(KA[0], KA[1], 15); // KA << 30
+        rks->kl[0] = KA[0]; rks->kl[1] = KA[1];
 
         // feistel rounds 6-11
-        rol128(KL[1], KL[0], 30) // KL << 45
-                rks->ku[6] = KL[1]; rks->ku[7] = KL[0];
-        rol128(KA[1], KA[0], 15) // KA << 45
-                rks->ku[8] = KA[1];
-        rol128(KL[1], KL[0], 15) // KL << 60
-                rks->ku[9] = KL[0];
-        rol128(KA[1], KA[0], 15) // KA << 60
-                rks->ku[10] = KL[1]; rks->ku[11] = KL[0];
+        rol128(KL[0], KL[1], 30) // KL << 45
+                rks->ku[6] = KL[0]; rks->ku[7] = KL[1];
+        rol128(KA[0], KA[1], 15) // KA << 45
+                rks->ku[8] = KA[0];
+        rol128(KL[0], KL[1], 15) // KL << 60
+                rks->ku[9] = KL[1];
+        rol128(KA[0], KA[1], 15) // KA << 60
+                rks->ku[10] = KA[0]; rks->ku[11] = KA[1];
 
         // FL/FL-1
-        rol128(KL[1], KL[0], 17) // KL << 77
-                rks->kl[2] = KL[1]; rks->kl[3] = KL[0];
+        rol128(KL[0], KL[1], 17) // KL << 77
+                rks->kl[2] = KL[0]; rks->kl[3] = KL[1];
 
         // feistel rounds 12-17
-        rol128(KL[1], KL[0], 17) // KL << 94
-                rks->ku[12] = KL[1]; rks->ku[13] = KL[0];
-        rol128(KA[1], KA[0], 34) // KA << 94
-                rks->ku[14] = KA[1]; rks->ku[15] = KA[0];
-        rol128(KL[1], KL[0], 17) // KL << 111
-                rks->ku[16] = KL[1]; rks->ku[17] = KL[0];
+        rol128(KL[0], KL[1], 17) // KL << 94
+                rks->ku[12] = KL[0]; rks->ku[13] = KL[1];
+        rol128(KA[0], KA[1], 34) // KA << 94
+                rks->ku[14] = KA[0]; rks->ku[15] = KA[1];
+        rol128(KL[0], KL[1], 17) // KL << 111
+                rks->ku[16] = KL[0]; rks->ku[17] = KL[1];
 
         // post-whitening
-        rol128(KA[1], KA[0], 17) // KA << 111
-                rks->kw[2] = KL[1]; rks->kw[3] = KL[0];
+        rol128(KA[0], KA[1], 17) // KA << 111
+                rks->kw[2] = KA[0]; rks->kw[3] = KA[1];
 }
 
 void camellia_naive_encrypt(uint64_t c[restrict 2],
@@ -322,27 +320,27 @@ void camellia_naive_encrypt(uint64_t c[restrict 2],
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
-        c[0] ^= rks->kw[1]; c[1] ^= rks->kw[0];
+        c[0] ^= rks->kw[0]; c[1] ^= rks->kw[1];
 
         for (int i = 0; i < 6; i++) {
                 camellia_naive_feistel_round(c, rks->ku[i + 0]);
         }
 
-        c[1] = camellia_naive_FL(c[1], rks->kl[0]);
-        c[0] = camellia_naive_FL_inv(c[0], rks->kl[1]);
+        c[0] = camellia_naive_FL(c[0], rks->kl[0]);
+        c[1] = camellia_naive_FL_inv(c[1], rks->kl[1]);
 
         for (int i = 0; i < 6; i++) {
                 camellia_naive_feistel_round(c, rks->ku[i + 6]);
         }
 
-        c[1] = camellia_naive_FL(c[1], rks->kl[0]);
-        c[0] = camellia_naive_FL_inv(c[0], rks->kl[1]);
+        c[0] = camellia_naive_FL(c[0], rks->kl[2]);
+        c[1] = camellia_naive_FL_inv(c[1], rks->kl[3]);
 
         for (int i = 0; i < 6; i++) {
                 camellia_naive_feistel_round(c, rks->ku[i + 12]);
         }
 
-        c[0] ^= rks->kw[3]; c[1] ^= rks->kw[2];
+        c[0] ^= rks->kw[2]; c[1] ^= rks->kw[3];
 }
 
 void camellia_naive_decrypt(uint64_t m[restrict 2],
@@ -351,26 +349,26 @@ void camellia_naive_decrypt(uint64_t m[restrict 2],
 {
         memcpy(m, c, sizeof(m[0]) * 2);
 
-        m[0] ^= rks->kw[3]; m[1] ^= rks->kw[2];
+        m[0] ^= rks->kw[2]; m[1] ^= rks->kw[3];
 
         for (int i = 5; i >= 0; i--) {
                 camellia_naive_feistel_round_inv(m, rks->ku[i + 12]);
         }
 
-        m[1] = camellia_naive_FL_inv(m[1], rks->kl[0]);
-        m[0] = camellia_naive_FL(m[0], rks->kl[1]);
+        m[0] = camellia_naive_FL_inv(m[0], rks->kl[0]);
+        m[1] = camellia_naive_FL(m[1], rks->kl[1]);
 
         for (int i = 5; i >= 0; i--) {
                 camellia_naive_feistel_round_inv(m, rks->ku[i + 6]);
         }
 
-        m[1] = camellia_naive_FL_inv(m[1], rks->kl[0]);
-        m[0] = camellia_naive_FL(m[0], rks->kl[1]);
+        m[0] = camellia_naive_FL_inv(m[0], rks->kl[2]);
+        m[1] = camellia_naive_FL(m[1], rks->kl[3]);
 
         for (int i = 5; i >= 0; i--) {
                 camellia_naive_feistel_round_inv(m, rks->ku[i + 0]);
         }
 
-        m[0] ^= rks->kw[1]; m[1] ^= rks->kw[0];
+        m[0] ^= rks->kw[0]; m[1] ^= rks->kw[1];
 
 }

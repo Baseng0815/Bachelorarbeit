@@ -5,6 +5,7 @@
 #include "table/gift_table.h"
 #include "vector/gift_vec_sbox.h"
 #include "vector/gift_vec_sliced.h"
+#include "camellia/naive.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -221,14 +222,34 @@ static void benchmark_gift_64_vec_sliced(void)
         printf("throughput: %f MiB/s\n", megs / seconds);
 }
 
+static void benchmark_camellia_naive(void)
+{
+        printf("Benchmaring CAMELLIA_NAIVE...\n");
+
+        uint64_t key[2];
+        uint64_t m[2], c[2];
+        struct camellia_keytable rks;
+
+        uint64_t cycles[2] = { 0UL };
+        for (int i = 0; i < NL; i++) {
+                cycles[0] += TIME(camellia_naive_generate_round_keys(key, &rks));
+                cycles[1] += TIME(camellia_naive_encrypt(c, m, &rks));
+        }
+
+        printf("%f %f\n",
+               cycles[0] / (float)NL / 16.0f,
+               cycles[1] / (float)NL / 16.0f);
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
-        benchmark_gift_64();
-        benchmark_gift_128();
-        benchmark_gift_64_table();
-        benchmark_gift_64_vec_sbox();
-        benchmark_gift_64_vec_sliced();
+        /* benchmark_gift_64(); */
+        /* benchmark_gift_128(); */
+        /* benchmark_gift_64_table(); */
+        /* benchmark_gift_64_vec_sbox(); */
+        /* benchmark_gift_64_vec_sliced(); */
+        benchmark_camellia_naive();
 }
 
 #pragma clang optimize on
