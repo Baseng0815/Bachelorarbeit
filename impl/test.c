@@ -298,11 +298,8 @@ void test_camellia_naive(void)
                 0x6767313854966973, 0x0857065648eabe43
         };
 
-        /* printf("%lx\n", camellia_naive_FL(0x38f05d1982b0dca5UL, 0x56e9afc745a49029UL)); */
-        /* exit(0); */
         camellia_naive_generate_round_keys(key, &rks);
         camellia_naive_encrypt(c, m, &rks);
-        printf("%lx %lx\n", c[0], c[1]);
         ASSERT_EQUALS(c[0], c_expected[0]);
         ASSERT_EQUALS(c[1], c_expected[1]);
 

@@ -263,7 +263,6 @@ void camellia_naive_generate_round_keys(const uint64_t key[restrict 2],
         uint64_t KL[2], KA[2];
         memcpy(KL, key, sizeof(KL));
         memcpy(KA, key, sizeof(KA));
-        printf("%lx %lx\n", KA[0], KA[1]);
 
         // compute KA
         camellia_naive_feistel_round(KA, keysched_const[0]);
@@ -326,7 +325,6 @@ void camellia_naive_encrypt(uint64_t c[restrict 2],
         for (int i = 0; i < 6; i++) {
                 camellia_naive_feistel_round(c, rks->ku[i + 0]);
         }
-        printf("%lx %lx\n", c[0], c[1]);
 
         c[0] = camellia_naive_FL(c[0], rks->kl[0]);
         c[1] = camellia_naive_FL_inv(c[1], rks->kl[1]);
