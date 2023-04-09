@@ -274,36 +274,35 @@ void test_camellia_naive(void)
         uint64_t key[2];
         struct camellia_keytable rks;
 
-        /* printf("testing CAMELLIA_NAIVE FL-FL_inv and feistel-feistel_inv...\n"); */
-        /* for (int i = 0; i < 256; i++) { */
-        /*         m_rand((uint8_t*)m, sizeof(m)); */
-        /*         key_rand(key); */
-        /*         ASSERT_EQUALS(camellia_naive_FL(camellia_naive_FL_inv(m[0], key[0]), key[0]), m[0]); */
-        /*         ASSERT_EQUALS(camellia_naive_FL_inv(camellia_naive_FL(m[1], key[1]), key[1]), m[1]); */
+        printf("testing CAMELLIA_NAIVE FL-FL_inv and feistel-feistel_inv...\n");
+        for (int i = 0; i < 256; i++) {
+                m_rand((uint8_t*)m, sizeof(m));
+                key_rand(key);
+                ASSERT_EQUALS(camellia_naive_FL(camellia_naive_FL_inv(m[0], key[0]), key[0]), m[0]);
+                ASSERT_EQUALS(camellia_naive_FL_inv(camellia_naive_FL(m[1], key[1]), key[1]), m[1]);
 
-        /*         uint64_t mc[2]; */
-        /*         memcpy(mc, m, sizeof(mc)); */
-        /*         camellia_naive_feistel_round(mc, key[0]); */
-        /*         camellia_naive_feistel_round_inv(mc, key[0]); */
-        /*         ASSERT_TRUE(memcmp(mc, m, sizeof(mc)) == 0); */
-        /*         camellia_naive_feistel_round_inv(mc, key[1]); */
-        /*         camellia_naive_feistel_round(mc, key[1]); */
-        /*         ASSERT_TRUE(memcmp(mc, m, sizeof(mc)) == 0); */
-        /* } */
+                uint64_t mc[2];
+                memcpy(mc, m, sizeof(mc));
+                camellia_naive_feistel_round(mc, key[0]);
+                camellia_naive_feistel_round_inv(mc, key[0]);
+                ASSERT_TRUE(memcmp(mc, m, sizeof(mc)) == 0);
+                camellia_naive_feistel_round_inv(mc, key[1]);
+                camellia_naive_feistel_round(mc, key[1]);
+                ASSERT_TRUE(memcmp(mc, m, sizeof(mc)) == 0);
+        }
 
         printf("testing CAMELLIA_NAIVE encrypt to known value...\n");
         key[0] = m[0] = 0x0123456789abcdefUL;
         key[1] = m[1] = 0xfedcba9876543210UL;
         uint64_t c_expected[2] = {
-                0x7369965438316767UL, 0x43beea4856065708UL
+                0x6767313854966973, 0x0857065648eabe43
         };
 
+        /* printf("%lx\n", camellia_naive_FL(0x38f05d1982b0dca5UL, 0x56e9afc745a49029UL)); */
+        /* exit(0); */
         camellia_naive_generate_round_keys(key, &rks);
-        for (size_t i = 0; i < 18; i++) {
-                printf("%lx\n", rks.ku[i]);
-        }
         camellia_naive_encrypt(c, m, &rks);
-        /* printf("%lx %lx\n", c[0], c[1]); */
+        printf("%lx %lx\n", c[0], c[1]);
         ASSERT_EQUALS(c[0], c_expected[0]);
         ASSERT_EQUALS(c[1], c_expected[1]);
 
@@ -316,7 +315,8 @@ void test_camellia_naive(void)
                 uint64_t m_decr[2];
                 camellia_naive_encrypt(c, m, &rks);
                 camellia_naive_decrypt(m_decr, c, &rks);
-                ASSERT_TRUE(memcmp(m_decr, m, sizeof(m_decr)) == 0);
+                ASSERT_EQUALS(m[0], m_decr[0]);
+                ASSERT_EQUALS(m[1], m_decr[1]);
         }
 }
 

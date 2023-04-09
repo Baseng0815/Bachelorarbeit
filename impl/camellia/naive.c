@@ -168,8 +168,8 @@ static const uint8_t s4[256] =
         (_a) = ((_a) << (_n)) | ((_t) >> (64 - (_n)));\
 }
 
-#define rol32expr(_a, _n)\
-        (((_a) << (_n)) | ((_a) >> (32 - (_n))))
+#define rol32_1(_a)\
+        (((_a) << 1) + ((_a) >> 31))
 
 uint64_t camellia_naive_S(uint64_t X)
 {
@@ -217,30 +217,30 @@ uint64_t camellia_naive_F(uint64_t X, uint64_t k)
 
 uint64_t camellia_naive_FL(uint64_t X, uint64_t kl)
 {
-        uint32_t XL = (X >> 0);
-        uint32_t XR = (X >> 32);
+        uint32_t XL = (X >> 32);
+        uint32_t XR = (X >> 0);
 
-        uint32_t klL = (kl >> 0);
-        uint32_t klR = (kl >> 32);
+        uint32_t klL = (kl >> 32);
+        uint32_t klR = (kl >> 0);
 
-        uint32_t YR = rol32expr(XL & klL, 1) ^ XR;
+        uint32_t YR = rol32_1(XL & klL) ^ XR;
         uint32_t YL = (YR | klR) ^ XL;
 
-        return (uint64_t)YL | ((uint64_t)YR << 32);
+        return ((uint64_t)YL << 32) | (uint64_t)YR;
 }
 
 uint64_t camellia_naive_FL_inv(uint64_t Y, uint64_t kl)
 {
-        uint32_t YL = (Y >> 0);
-        uint32_t YR = (Y >> 32);
+        uint32_t YL = (Y >> 32);
+        uint32_t YR = (Y >> 0);
 
-        uint32_t klL = (kl >> 0);
-        uint32_t klR = (kl >> 32);
+        uint32_t klL = (kl >> 32);
+        uint32_t klR = (kl >> 0);
 
         uint32_t XL = (YR | klR) ^ YL;
-        uint32_t XR = rol32expr(XL & klL, 1) ^ YR;
+        uint32_t XR = rol32_1(XL & klL) ^ YR;
 
-        return (uint64_t)XL | ((uint64_t)XR << 32);
+        return ((uint64_t)XL << 32) | (uint64_t)XR;
 }
 
 void camellia_naive_feistel_round(uint64_t state[2], uint64_t kr)
@@ -263,6 +263,7 @@ void camellia_naive_generate_round_keys(const uint64_t key[restrict 2],
         uint64_t KL[2], KA[2];
         memcpy(KL, key, sizeof(KL));
         memcpy(KA, key, sizeof(KA));
+        printf("%lx %lx\n", KA[0], KA[1]);
 
         // compute KA
         camellia_naive_feistel_round(KA, keysched_const[0]);
@@ -325,6 +326,7 @@ void camellia_naive_encrypt(uint64_t c[restrict 2],
         for (int i = 0; i < 6; i++) {
                 camellia_naive_feistel_round(c, rks->ku[i + 0]);
         }
+        printf("%lx %lx\n", c[0], c[1]);
 
         c[0] = camellia_naive_FL(c[0], rks->kl[0]);
         c[1] = camellia_naive_FL_inv(c[1], rks->kl[1]);
@@ -340,6 +342,10 @@ void camellia_naive_encrypt(uint64_t c[restrict 2],
                 camellia_naive_feistel_round(c, rks->ku[i + 12]);
         }
 
+        // swap c[0] and c[1] (concatenation of R||L)
+        uint64_t t = c[0];
+        c[0] = c[1]; c[1] = t;
+
         c[0] ^= rks->kw[2]; c[1] ^= rks->kw[3];
 }
 
@@ -351,19 +357,23 @@ void camellia_naive_decrypt(uint64_t m[restrict 2],
 
         m[0] ^= rks->kw[2]; m[1] ^= rks->kw[3];
 
+        // swap c[0] and c[1] (concatenation of R||L)
+        uint64_t t = m[0];
+        m[0] = m[1]; m[1] = t;
+
         for (int i = 5; i >= 0; i--) {
                 camellia_naive_feistel_round_inv(m, rks->ku[i + 12]);
         }
 
-        m[0] = camellia_naive_FL_inv(m[0], rks->kl[0]);
-        m[1] = camellia_naive_FL(m[1], rks->kl[1]);
+        m[1] = camellia_naive_FL(m[1], rks->kl[3]);
+        m[0] = camellia_naive_FL_inv(m[0], rks->kl[2]);
 
         for (int i = 5; i >= 0; i--) {
                 camellia_naive_feistel_round_inv(m, rks->ku[i + 6]);
         }
 
-        m[0] = camellia_naive_FL_inv(m[0], rks->kl[2]);
-        m[1] = camellia_naive_FL(m[1], rks->kl[3]);
+        m[1] = camellia_naive_FL(m[1], rks->kl[1]);
+        m[0] = camellia_naive_FL_inv(m[0], rks->kl[0]);
 
         for (int i = 5; i >= 0; i--) {
                 camellia_naive_feistel_round_inv(m, rks->ku[i + 0]);
