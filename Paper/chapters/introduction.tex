@@ -41,13 +41,13 @@ on-the-fly disc encryption present strong hardware and power constraints. GIFT
 aims to be a simple, low-energy cipher suited for these kinds of applications.
 
 \texttt{GIFT} comes in two variants; \verb|GIFT-64| working with 64-bit blocks
-and \texttt{GIFT-128} working with 128-bit blocks. In both cases, the key is 128
+and GIFT-128 working with 128-bit blocks. In both cases, the key is 128
 bits long. The design is a very simple, round-based substitution-permutation
 network (SPN). One round consists in a sequential application of the confusion
 layer by means of 4-bit S-boxes and subsequent diffusion through bit
 permutation. After the bit permutation, a round key is added to the cipher
-state and the single round is complete. \texttt{GIFT-64} uses 28 rounds while
-\texttt{GIFT-128} uses 40 rounds.
+state and the single round is complete. GIFT-64 uses 28 rounds while
+GIFT-128 uses 40 rounds.
 
 \begin{figure}[h!]
     \centering
@@ -58,7 +58,7 @@ state and the single round is complete. \texttt{GIFT-64} uses 28 rounds while
 \subsubsection{Substitution layer}
 
 The input of \texttt{GIFT} is split into 4-bit nibbles which are then fed into
-16 S-boxes for \texttt{GIFT-64} and 32 S-boxes for \texttt{GIFT-128}. The S-box
+16 S-boxes for GIFT-64 and 32 S-boxes for GIFT-128. The S-box
 $S:\F{4}\rightarrow \F{4}$ is defined as follows:
 
 \[
@@ -71,9 +71,8 @@ $S:\F{4}\rightarrow \F{4}$ is defined as follows:
 
 \subsubsection{Permutation layer}
 
-The permutation $P$ works on individual bits and maps bit $b_i$ to $b_{P(i)},
-i\in\{0,1,\dots,n-1\}$. The different permutations for \texttt{GIFT-64} and
-\texttt{GIFT-128} can be expressed by:
+The permutation $P$ works on individual bits and maps bit $b_i$ to $b_{P(i)}$.
+The different permutations for GIFT-64 and GIFT-128 can be expressed by:
 
 \begin{align*}
     P_{64}(i)&=4\left\lfloor\frac{i}{16}\right\rfloor+16\left(\left(3\left\lfloor\frac{i\bmod 16}{4}\right\rfloor+(i\bmod 4)\right)\bmod 4\right)+(i\bmod 4) \\
@@ -82,30 +81,31 @@ i\in\{0,1,\dots,n-1\}$. The different permutations for \texttt{GIFT-64} and
 
 \subsubsection{Round key addition}
 
-The last step of each round consists in XORing a round key $R_i$ to the cipher
-state. The new cipher state $s_{i+1}$ after each full round is therefore given
+The last step of each round consists in XORing a round key $R_{i}$ to the cipher
+state. The new cipher state $x_{i+1}$ after each full round is therefore given
 by
 
 \[
-    s_{i+1}=P(S(s_i))\oplus R_i
+    x_{i+1}=P(S(x_i))\oplus R_i
 \]
 
 \subsubsection{Round key extraction and key schedule}
 
-Round key extraction differs for \texttt{GIFT-64} and \texttt{GIFT-128}. Let
-$K=k_7||k_6||\dots||k_0$ denote the $128$-bit key state.
+Round key extraction differs for GIFT-64 and GIFT-128. Let
+$K_{(128)}=k_7||k_6||\dots||k_0$ denote the 128-bit key state.
 
-\paragraph{GIFT-64}. We extract two 16-bit words $U||V=k_1||k_0$ from the key
-state. These are then added to the 64-bit round key: $R_{4i+1}\leftarrow
-u_i,R_{4i}\leftarrow v_i$.
+\paragraph{GIFT-64}. We extract two words $U_{(16)}||V_{(16)}=k_1||k_0$ from the key
+state. These are then added to round key $R_{(64)}$: $R_{4i+1}\leftarrow
+U_i,R_{4i}\leftarrow V_i$.
 
-\paragraph{GIFT-128}. We extract two 32-bit words $U||V=k_5||k_4||k_1||k_0$ from
-the key state. These are then added to the 128-bit round key: $R_{4i+2}\leftarrow
-u_i,R_{4i+1}\leftarrow v_i$.
+\paragraph{GIFT-128}. We extract two words
+$U_{(32)}||V_{(32)}=k_5||k_4||k_1||k_0$ from the key state. These are then
+added to round key $R_{(128)}$: $R_{4i+2}\leftarrow U_i,R_{4i+1}\leftarrow
+V_i$.
 
-In both cases, we additionally XOR a round constant $C=c_5c_4c_3c_2c_1c_0$ to
-bit positions $n-1,23,19,15,11,7,3$. The round constants are generated using a
-6-bit affine linear-feedback shift register and have the following values:\\
+In both cases, we additionally XOR a round constant $C_{(6)}$ to bit positions
+$n-1,23,19,15,11,7,3$. The round constants are generated using a 6-bit affine
+linear-feedback shift register and have the following values:\\
 
 \begin{tabular}{r|l}
     \textbf{Rounds} & \textbf{Constants} \\
@@ -115,14 +115,73 @@ bit positions $n-1,23,19,15,11,7,3$. The round constants are generated using a
     \textbf{33 - 48} & \small\texttt{31,23,06,0D,1B,36,2D,1A,34,29,12,24,08,11,22,04}
 \end{tabular}\\
 
-The key state is then updated by setting $k_1\leftarrow k_1\ggg 2$,
-$k_0\leftarrow k_0\ggg 12$ and rotating the new state $32$ bits to the right:
+The key state is then updated by individually rotating $k_1$ and $k_0$ and
+rotating the new state $32$ bits to the right:
 
 \[
     k_7||k_6||\dots||k_1||k_0\leftarrow k_1\ggg 2||k_0\ggg 12||k_7||k_6||\dots||k_3||k_2
 \]
 
 \subsection{Camellia}
+
+Camellia\cite{camellia:2001} is a block cipher jointly developed by NTT and
+Mitsubishi Electric Corporation and first published in 2001. Following AES
+specifications, it is able to encrypt 128-bit blocks using either 128-, 196- or
+256-bit keys and claims to possess similar performance and security levels as
+the AES finalists.
+
+\subsubsection{Encryption overview}
+
+The encryption process has an 18-round Feistel structure for 128-bit keys and a
+24-round Feistel structure for 192/256-bit key and employs key whitening to
+increase security. First, subkeys $kw_{t(64)}(t=0,1,2,3)$,
+$k_{u(64)}(u=1,2,\dots,(17|23)$ and $kl_{v(64)}(v=0,1,2,3)$ are generated from
+the master key. Then, pre-whitening keys are applied to the left and right half
+of the plaintext $m_{(128)}=L_{(64)}||R_{(64)}$:
+
+\[
+    L\leftarrow L\oplus kw_0, R\leftarrow R\oplus kw_1
+\]
+
+The next steps differ for 128-bit and 192/256-bit keys:
+
+\begin{table}[h!]
+    \centering
+    \caption{Camellia encryption}
+    \begin{tabular}{lll}
+        \toprule
+        Round $r$ & 128-bit keys & 192/256-bit keys \\
+        \midrule
+        0-4 & $FE(L,R,k_r)$ & $FE(L,R,k_r)$ \\
+        \midrule
+        5 & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_0,kl_1)\end{aligned}$} & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_0,kl_1)\end{aligned}$} \\
+        \midrule
+        6-10 & $FE(L,R,k_r)$ & $FE(L,R,k_r)$ \\
+        \midrule
+        11 & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_2,kl_3)\end{aligned}$} & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_2,kl_3)\end{aligned}$} \\
+        \midrule
+        12-16 & $FE(L,R,k_r)$ & $FE(L,R,k_r)$ \\
+        \midrule
+        17 & & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_4,kl_5)\end{aligned}$} \\
+        \midrule
+        18-23 & & $FE(L,R,k_r)$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Finally, $R$ and $L$ are concatenated and XORed with the post-whitening keys to
+obtain the cipher text $c_{(128)}$:
+
+\[
+    c=(R\oplus kw_2)||(L\oplus kw_3)
+\]
+
+\subsubsection{Components}
+
+$FE$ and $FLA$ are macros for applying one round of the Feistel structure and
+$FL$ functions and are defined as follows:
+
+
 
 \section{The ARMv8 platform}
 
