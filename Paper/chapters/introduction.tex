@@ -204,6 +204,7 @@ instruction set with NEON and crypto extensions.
 
 \begin{table}[h!]
     \centering
+    \caption{ARMv8 profiles}
     \begin{tabularx}{\textwidth}{lX}
         \toprule
         Profile & Description \\
@@ -213,11 +214,11 @@ instruction set with NEON and crypto extensions.
         Microcontroller (M) & Very low-power, fast-interrupt embedded systems \\
         \bottomrule
     \end{tabularx}
-    \caption{ARMv8 profiles}
 \end{table}
 
 \begin{table}[h!]
     \centering
+    \caption{ARMv8 execution states}
     \begin{tabularx}{\textwidth}{llX}
         \toprule
         Execution state & Usage & Instruction sets \\
@@ -226,7 +227,6 @@ instruction set with NEON and crypto extensions.
         AArch64 & 64-bit & A64 \\
         \bottomrule
     \end{tabularx}
-    \caption{ARMv8 execution states}
 \end{table}
 
 \subsection{General architecture}
@@ -246,6 +246,7 @@ overwriting the first input register.
 \begin{table}[h!]
     \centering
     \small
+    \caption{A64 addressing modes}
     \begin{tabularx}{\textwidth}{llX}
         \toprule
         Addressing mode & Example & Description \\
@@ -256,7 +257,6 @@ overwriting the first input register.
         Post-indexing & \texttt{LDR W0, [X1], \#12} & \texttt{W0 = *(X1); X1 += 12;} \\
         \bottomrule
     \end{tabularx}
-    \caption{A64 addressing modes}
 \end{table}
 
 \subsection{NEON}
@@ -335,6 +335,7 @@ also array types: \\
 \begin{table}[h!]
     \centering
     \footnotesize
+    \caption{Common NEON intrinsics}
     \begin{tabularx}{\textwidth}{llX}
         \toprule
         Intrinsic && Summary \\
@@ -360,5 +361,4 @@ also array types: \\
         \texttt{uint8x16\_t} & \texttt{vqtbl2q\_u8(uint8x16\_t, uint8x16\_t)} & permutation (\texttt{TBL}) \\
         \bottomrule
     \end{tabularx}
-    \caption{Common NEON intrinsics}
 \end{table}
