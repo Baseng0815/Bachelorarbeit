@@ -228,12 +228,12 @@ static void benchmark_camellia_naive(void)
 
         uint64_t key[2];
         uint64_t m[2], c[2];
-        struct camellia_keytable rks;
+        struct camellia_keys_128 rks;
 
         uint64_t cycles[2] = { 0UL };
         for (int i = 0; i < NL; i++) {
-                cycles[0] += TIME(camellia_naive_generate_round_keys(key, &rks));
-                cycles[1] += TIME(camellia_naive_encrypt(c, m, &rks));
+                cycles[0] += TIME(camellia_naive_generate_round_keys_128(key, &rks));
+                cycles[1] += TIME(camellia_naive_encrypt_128(c, m, &rks));
         }
 
         printf("%f %f\n",
