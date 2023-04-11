@@ -180,32 +180,86 @@ obtain the cipher text $c_{(128)}$:
 
 We will give an overview of the main functional components of Camellia.
 
-\paragraph{Feistel round function $FE$}
+\paragraph{Feistel round function $FE$:}
 
 \begin{align*}
     FE:(\F{64})^3 &\rightarrow (\F{64})^2 \\
     (L_{(64)},R_{(64)},k_{(64)})&\mapsto (R\oplus F(L,k), L)
 \end{align*}
 
-\paragraph{SP-function $F$}
+\paragraph{SP-function $F$:}
 
 \begin{align*}
     F:(\F{64})^2 &\rightarrow \F{64} \\
     (X_{(64)},k_{(64)})&\mapsto P(S(X\oplus k))
 \end{align*}
 
-\paragraph{Substitution function $F$}
+\paragraph{Substitution function $S$:}
 
 \begin{align*}
     S:\F{64} &\rightarrow \F{64} \\
-    l_{0(8)||l_{1(8)||l_{2(8)||l_{3(8)||l_{4(8)||l_{5(8)||l_{6(8)||l_{7(8)||&\mapsto P(S(X\oplus k))
+    \begin{aligned}
+        l_{0(8)}||l_{1(8)}||l_{2(8)}||l_{3(8)}&||\\
+        l_{4(8)}||l_{5(8)}||l_{6(8)}||l_{7(8)}&
+    \end{aligned}&\mapsto
+    \begin{aligned}
+        s_0(l_0)||s_1(l_1)||s_2(l_2)||s_3(l_3)&||\\
+        s_1(l_4)||s_2(l_5)||s_3(l_6)||s_0(l_7)&
+    \end{aligned},
 \end{align*}
 
-\paragraph{$FL$ layer function $FLL$}
+with 8-bit S-boxes $s_0,s_1,s_2,s_3:\F{8}\rightarrow \F{8}$.
+
+\paragraph{Permutation function $P$:}
+
+\begin{align*}
+    P:\F{64} &\rightarrow \F{64} \\
+    \begin{pmatrix}z_7\\z_6\\z_5\\z_4\\z_3\\z_2\\z_1\\z_0\end{pmatrix}&\mapsto
+    \begin{pmatrix}
+        0 & 1 & 1 & 1 & 1 & 0 & 0 & 1 \\
+        1 & 0 & 1 & 1 & 1 & 1 & 0 & 0 \\
+        1 & 1 & 0 & 1 & 0 & 1 & 1 & 0 \\
+        1 & 1 & 1 & 0 & 0 & 0 & 1 & 1 \\
+        0 & 1 & 1 & 1 & 1 & 1 & 1 & 0 \\
+        1 & 0 & 1 & 1 & 0 & 1 & 1 & 1 \\
+        1 & 1 & 0 & 1 & 1 & 0 & 1 & 1 \\
+        1 & 1 & 1 & 0 & 1 & 1 & 0 & 1
+    \end{pmatrix}\begin{pmatrix}z_7\\z_6\\z_5\\z_4\\z_3\\z_2\\z_1\\z_0\end{pmatrix}
+\end{align*}
+
+\paragraph{$FL$ layer function $FLL$:}
 
 \begin{align*}
     FLL:(\F{64})^4 &\rightarrow (\F{64})^2 \\
-    (L_{(64)},R_{(64)},k_{0(64)},k_{1(64)})&\mapsto (FL(L,k_0),FL^{-1}(R,k_1))
+    (X_{L(64)},X_{R(64)},k_{0(64)},k_{1(64)})&\mapsto (FL(X_L,k_0),FL^{-1}(X_R,k_1))
+\end{align*}
+
+\paragraph{$FL$:}
+
+\begin{align*}
+    FL:(\F{64})^2 &\rightarrow \F{64} \\
+    (X_{L(32)}||X_{R(32)},k_{L(32)}||k_{R(32)})&\mapsto (Y_{L(32)}||Y_{R(32)}),
+\end{align*}
+
+where
+
+\begin{align*}
+    Y_{R(32)}&=((X_L\cap k_{L})\lll_1)\oplus X_{R} \\
+    Y_{L(32)}&=(Y_R\cup k_{R})\oplus X_{L}
+\end{align*}
+
+\paragraph{$FL^{-1}$:}
+
+\begin{align*}
+    FL^{-1}:(\F{64})^2 &\rightarrow \F{64} \\
+    (Y_{L(32)}||Y_{R(32)},k_{L(32)}||k_{R(32)})&\mapsto (X_{L(32)}||X_{R(32)}),
+\end{align*}
+
+where
+
+\begin{align*}
+    X_{L(32)}&=(Y_R\cup k_{R})\oplus Y_{L} \\
+    X_{R(32)}&=((X_L\cap k_{L})\lll_1)\oplus Y_{R}
 \end{align*}
 
 \section{The ARMv8 platform}
