@@ -135,15 +135,15 @@ the AES finalists.
 The encryption process has an 18-round Feistel structure for 128-bit keys and a
 24-round Feistel structure for 192/256-bit key and employs key whitening to
 increase security. First, subkeys $kw_{t(64)}(t=0,1,2,3)$,
-$k_{u(64)}(u=1,2,\dots,(17|23)$ and $kl_{v(64)}(v=0,1,2,3)$ are generated from
-the master key. Then, pre-whitening keys are applied to the left and right half
-of the plaintext $m_{(128)}=L_{(64)}||R_{(64)}$:
+$k_{u(64)}(u=0,1,\dots,(17|23)$ and $kl_{v(64)}(v=0,1,2,3)$ are generated from
+the master key. Then, pre-whitening keys are applied to the plaintext
+$m_{(128)}=L_{(64)}||R_{(64)}$:
 
 \[
-    L\leftarrow L\oplus kw_0, R\leftarrow R\oplus kw_1
+    (L||R)\leftarrow (L||R)\oplus (kw_0||kw_1)
 \]
 
-The next steps differ for 128-bit and 192/256-bit keys:
+The next steps differ for 128-bit and 192/256-bit keys in the number of rounds:
 
 \begin{table}[h!]
     \centering
@@ -152,19 +152,19 @@ The next steps differ for 128-bit and 192/256-bit keys:
         \toprule
         Round $r$ & 128-bit keys & 192/256-bit keys \\
         \midrule
-        0-4 & $FE(L,R,k_r)$ & $FE(L,R,k_r)$ \\
+        0-4 & $(L||R)\leftarrow FE(L,R,k_r)$ & $(L||R)\leftarrow FE(L,R,k_r)$ \\
         \midrule
-        5 & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_0,kl_1)\end{aligned}$} & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_0,kl_1)\end{aligned}$} \\
+        5 & {$\!\begin{aligned}&(L||R)\leftarrow FE(L,R)\\&(L||R)\leftarrow FLL(L,R,kl_0,kl_1)\end{aligned}$} & {$\!\begin{aligned}&(L||R)\leftarrow FE(L,R)\\&(L||R)\leftarrow FLL(L,R,kl_0,kl_1)\end{aligned}$} \\
         \midrule
-        6-10 & $FE(L,R,k_r)$ & $FE(L,R,k_r)$ \\
+        6-10 & $(L||R)\leftarrow FE(L,R,k_r)$ & $(L||R)\leftarrow FE(L,R,k_r)$ \\
         \midrule
-        11 & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_2,kl_3)\end{aligned}$} & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_2,kl_3)\end{aligned}$} \\
+        11 & {$\!\begin{aligned}&(L||R)\leftarrow FE(L,R)\\&(L||R)\leftarrow FLL(L,R,kl_2,kl_3)\end{aligned}$} & {$\!\begin{aligned}&(L||R)\leftarrow FE(L,R)\\&(L||R)\leftarrow FLL(L,R,kl_2,kl_3)\end{aligned}$} \\
         \midrule
-        12-16 & $FE(L,R,k_r)$ & $FE(L,R,k_r)$ \\
+        12-16 & $(L||R)\leftarrow FE(L,R,k_r)$ & $(L||R)\leftarrow FE(L,R,k_r)$ \\
         \midrule
-        17 & & {$\!\begin{aligned}&FE(L,R)\\&FLA(L,R,kl_4,kl_5)\end{aligned}$} \\
+        17 & & {$\!\begin{aligned}&(L||R)\leftarrow FE(L,R)\\&(L||R)\leftarrow FLL(L,R,kl_4,kl_5)\end{aligned}$} \\
         \midrule
-        18-23 & & $FE(L,R,k_r)$ \\
+        18-23 & & $(L||R)\leftarrow FE(L,R,k_r)$ \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -173,15 +173,40 @@ Finally, $R$ and $L$ are concatenated and XORed with the post-whitening keys to
 obtain the cipher text $c_{(128)}$:
 
 \[
-    c=(R\oplus kw_2)||(L\oplus kw_3)
+    c=(R||L)\oplus (kw_2)||kw_3)
 \]
 
 \subsubsection{Components}
 
-$FE$ and $FLA$ are macros for applying one round of the Feistel structure and
-$FL$ functions and are defined as follows:
+We will give an overview of the main functional components of Camellia.
 
+\paragraph{Feistel round function $FE$}
 
+\begin{align*}
+    FE:(\F{64})^3 &\rightarrow (\F{64})^2 \\
+    (L_{(64)},R_{(64)},k_{(64)})&\mapsto (R\oplus F(L,k), L)
+\end{align*}
+
+\paragraph{SP-function $F$}
+
+\begin{align*}
+    F:(\F{64})^2 &\rightarrow \F{64} \\
+    (X_{(64)},k_{(64)})&\mapsto P(S(X\oplus k))
+\end{align*}
+
+\paragraph{Substitution function $F$}
+
+\begin{align*}
+    S:\F{64} &\rightarrow \F{64} \\
+    l_{0(8)||l_{1(8)||l_{2(8)||l_{3(8)||l_{4(8)||l_{5(8)||l_{6(8)||l_{7(8)||&\mapsto P(S(X\oplus k))
+\end{align*}
+
+\paragraph{$FL$ layer function $FLL$}
+
+\begin{align*}
+    FLL:(\F{64})^4 &\rightarrow (\F{64})^2 \\
+    (L_{(64)},R_{(64)},k_{0(64)},k_{1(64)})&\mapsto (FL(L,k_0),FL^{-1}(R,k_1))
+\end{align*}
 
 \section{The ARMv8 platform}
 
