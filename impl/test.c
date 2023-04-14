@@ -5,6 +5,7 @@
 #include "vector/gift_vec_sliced.h"
 
 #include "camellia/naive.h"
+#include "camellia/spec_opt.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -279,8 +280,8 @@ void test_camellia_naive(void)
         for (int i = 0; i < 256; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
                 key_rand(key);
-                ASSERT_EQUALS(camellia_naive_FL(camellia_naive_FL_inv(m[0], key[0]), key[0]), m[0]);
-                ASSERT_EQUALS(camellia_naive_FL_inv(camellia_naive_FL(m[1], key[1]), key[1]), m[1]);
+                ASSERT_EQUALS(camellia_naive_FL(camellia_spec_opt_FL_inv(m[0], key[0]), key[0]), m[0]);
+                ASSERT_EQUALS(camellia_naive_FL_inv(camellia_spec_opt_FL(m[1], key[1]), key[1]), m[1]);
 
                 uint64_t mc[2];
                 memcpy(mc, m, sizeof(mc));
@@ -347,6 +348,85 @@ void test_camellia_naive(void)
         }
 }
 
+void test_camellia_spec_opt(void)
+{
+        uint64_t m[2], c[2];
+        uint64_t key[2];
+        struct camellia_keys_128 rks_128;
+        struct camellia_keys_256 rks_256;
+
+        printf("testing CAMELLIA_SPEC_OPT FL-FL_inv and feistel-feistel_inv...\n");
+        for (int i = 0; i < 256; i++) {
+                m_rand((uint8_t*)m, sizeof(m));
+                key_rand(key);
+                ASSERT_EQUALS(camellia_spec_opt_FL(camellia_spec_opt_FL_inv(m[0], key[0]), key[0]), m[0]);
+                ASSERT_EQUALS(camellia_spec_opt_FL_inv(camellia_spec_opt_FL(m[1], key[1]), key[1]), m[1]);
+
+                uint64_t mc[2];
+                memcpy(mc, m, sizeof(mc));
+                camellia_spec_opt_feistel_round(mc, key[0]);
+                camellia_spec_opt_feistel_round_inv(mc, key[0]);
+                ASSERT_TRUE(memcmp(mc, m, sizeof(mc)) == 0);
+                camellia_spec_opt_feistel_round_inv(mc, key[1]);
+                camellia_spec_opt_feistel_round(mc, key[1]);
+                ASSERT_TRUE(memcmp(mc, m, sizeof(mc)) == 0);
+        }
+
+        printf("testing CAMELLIA_SPEC_OPT 128-bit encrypt to known value...\n");
+        key[0] = m[0] = 0x0123456789abcdefUL;
+        key[1] = m[1] = 0xfedcba9876543210UL;
+        uint64_t c_expected[2] = {
+                0x6767313854966973, 0x0857065648eabe43
+        };
+
+        camellia_spec_opt_generate_round_keys_128(key, &rks_128);
+        camellia_spec_opt_encrypt_128(c, m, &rks_128);
+        ASSERT_EQUALS(c[0], c_expected[0]);
+        ASSERT_EQUALS(c[1], c_expected[1]);
+
+        printf("testing CAMELLIA_SPEC_OPT 128-bit encrypt-decrypt...\n");
+        for (int i = 0; i < 100; i++) {
+                m_rand((uint8_t*)m, sizeof(m));
+                key_rand(key);
+                camellia_spec_opt_generate_round_keys_128(key, &rks_128);
+
+                uint64_t m_decr[2];
+                camellia_spec_opt_encrypt_128(c, m, &rks_128);
+                camellia_spec_opt_decrypt_128(m_decr, c, &rks_128);
+                ASSERT_EQUALS(m[0], m_decr[0]);
+                ASSERT_EQUALS(m[1], m_decr[1]);
+        }
+
+        printf("testing CAMELLIA_SPEC_OPT 256-bit encrypt to known value...\n");
+        uint64_t key_256[4] = {
+                0x0123456789abcdefUL, 0xfedcba9876543210UL,
+                0x0011223344556677UL, 0x8899aabbccddeeffUL
+        };
+
+        m[0] = 0x0123456789abcdefUL;
+        m[1] = 0xfedcba9876543210UL;
+        c_expected[0] = 0x9acc237dff16d76cUL;
+        c_expected[1] = 0x20ef7c919e3a7509UL;
+
+        camellia_spec_opt_generate_round_keys_256(key_256, &rks_256);
+        camellia_spec_opt_encrypt_256(c, m, &rks_256);
+        ASSERT_EQUALS(c[0], c_expected[0]);
+        ASSERT_EQUALS(c[1], c_expected[1]);
+
+        printf("testing CAMELLIA_SPEC_OPT 256-bit encrypt-decrypt...\n");
+        for (int i = 0; i < 100; i++) {
+                m_rand((uint8_t*)m, sizeof(m));
+                m_rand((uint8_t*)key_256, sizeof(key_256));
+                camellia_spec_opt_generate_round_keys_256(key, &rks_256);
+
+                uint64_t m_decr[2];
+                camellia_spec_opt_encrypt_256(c, m, &rks_256);
+                camellia_spec_opt_decrypt_256(m_decr, c, &rks_256);
+                ASSERT_EQUALS(m[0], m_decr[0]);
+                ASSERT_EQUALS(m[1], m_decr[1]);
+        }
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
@@ -357,4 +437,5 @@ int main(int argc, char *argv[])
         test_gift_64_vec_sbox();
         test_gift_64_vec_sliced();
         test_camellia_naive();
+        test_camellia_spec_opt();
 }

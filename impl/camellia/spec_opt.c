@@ -1,4 +1,4 @@
-#include "naive.h"
+#include "spec_opt.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -169,9 +169,9 @@ static const uint8_t s4[256] =
 }
 
 #define expr_rol32_1(_a)\
-        (((_a) << 1) | ((_a) >> 31))
+        (((_a) << 1) + ((_a) >> 31))
 
-uint64_t camellia_naive_S(uint64_t X)
+uint64_t camellia_spec_opt_S(uint64_t X)
 {
         uint64_t result = 0UL;
         result |= (uint64_t)s1[(X >> 56) & 0xff] << 56;
@@ -186,7 +186,7 @@ uint64_t camellia_naive_S(uint64_t X)
         return result;
 }
 
-uint64_t camellia_naive_P(uint64_t X)
+uint64_t camellia_spec_opt_P(uint64_t X)
 {
         uint8_t z1 = X >> 56;
         uint8_t z2 = X >> 48;
@@ -210,12 +210,12 @@ uint64_t camellia_naive_P(uint64_t X)
         return result;
 }
 
-uint64_t camellia_naive_F(uint64_t X, const uint64_t k)
+uint64_t camellia_spec_opt_F(uint64_t X, const uint64_t k)
 {
-        return camellia_naive_P(camellia_naive_S(X ^ k));
+        return camellia_spec_opt_P(camellia_spec_opt_S(X ^ k));
 }
 
-uint64_t camellia_naive_FL(uint64_t X, const uint64_t kl)
+uint64_t camellia_spec_opt_FL(uint64_t X, const uint64_t kl)
 {
         const uint32_t XL = (X >> 32);
         const uint32_t XR = (X >> 0);
@@ -229,7 +229,7 @@ uint64_t camellia_naive_FL(uint64_t X, const uint64_t kl)
         return ((uint64_t)YL << 32) | (uint64_t)YR;
 }
 
-uint64_t camellia_naive_FL_inv(uint64_t Y, const uint64_t kl)
+uint64_t camellia_spec_opt_FL_inv(uint64_t Y, const uint64_t kl)
 {
         const uint32_t YL = (Y >> 32);
         const uint32_t YR = (Y >> 0);
@@ -243,184 +243,259 @@ uint64_t camellia_naive_FL_inv(uint64_t Y, const uint64_t kl)
         return ((uint64_t)XL << 32) | (uint64_t)XR;
 }
 
-void camellia_naive_feistel_round(uint64_t state[2], const uint64_t kr)
+void camellia_spec_opt_feistel_round(uint64_t state[2], const uint64_t kr)
 {
-        const uint64_t Lr = state[1] ^ camellia_naive_F(state[0], kr);
+        const uint64_t Lr = state[1] ^ camellia_spec_opt_F(state[0], kr);
         state[1] = state[0];
         state[0] = Lr;
 }
 
-void camellia_naive_feistel_round_inv(uint64_t state[2], const uint64_t kr)
+void camellia_spec_opt_feistel_round_inv(uint64_t state[2], const uint64_t kr)
 {
-        const uint64_t Rr1 = state[0] ^ camellia_naive_F(state[1], kr);
+        const uint64_t Rr = state[0] ^ camellia_spec_opt_F(state[1], kr);
         state[0] = state[1];
-        state[1] = Rr1;
+        state[1] = Rr;
 }
 
-void camellia_naive_generate_round_keys_128(const uint64_t key[restrict 2],
+void camellia_spec_opt_generate_round_keys_128(const uint64_t key[restrict 2],
                                         struct camellia_keys_128 *restrict rks)
 {
         uint64_t KL[2], KA[2];
+
+        // compute KL
         memcpy(KL, key, sizeof(KL));
-        memcpy(KA, key, sizeof(KA));
 
         // compute KA
-        camellia_naive_feistel_round(KA, keysched_const[0]);
-        camellia_naive_feistel_round(KA, keysched_const[1]);
-        KA[0] ^= KL[0], KA[1] ^= KL[1];
-        camellia_naive_feistel_round(KA, keysched_const[2]);
-        camellia_naive_feistel_round(KA, keysched_const[3]);
+        memcpy(KA, KL, sizeof(KA));
+
+        /* camellia_spec_opt_feistel_round(KA, keysched_const[0]); */
+        /* camellia_spec_opt_feistel_round(KA, keysched_const[1]); */
+        KA[0] = camellia_spec_opt_F(KL[1] ^ camellia_spec_opt_F(KL[0], keysched_const[0]),
+                                    keysched_const[1]);
+        KA[1] = camellia_spec_opt_F(KL[0], keysched_const[0]);
+        camellia_spec_opt_feistel_round(KA, keysched_const[2]);
+        camellia_spec_opt_feistel_round(KA, keysched_const[3]);
+
+        struct camellia_keys_128 keys;
+
+        // KL-dependent subkeys
+        keys.kw[0] = KL[0]; keys.kw[1] = KL[1];
+        rol128(KL[0], KL[1], 15); // KL << 15
+        keys.ku[2] = KL[0]; keys.ku[3] = KL[1];
+        rol128(KL[0], KL[1], 30) // KL << 45
+                keys.ku[6] = KL[0]; keys.ku[7] = KL[1];
+        rol128(KL[0], KL[1], 15) // KL << 60
+                keys.ku[9] = KL[1];
+        rol128(KL[0], KL[1], 17) // KL << 77
+                keys.kl[2] = KL[0]; keys.kl[3] = KL[1];
+        rol128(KL[0], KL[1], 17) // KL << 94
+                keys.ku[12] = KL[0]; keys.ku[13] = KL[1];
+        rol128(KL[0], KL[1], 17) // KL << 111
+                keys.ku[16] = KL[0]; keys.ku[17] = KL[1];
+
+        // KA-dependent subkeys
+        keys.ku[0] = KA[0]; keys.ku[1] = KA[1];
+        rol128(KA[0], KA[1], 15); // KA << 15
+                keys.ku[4] = KA[0]; keys.ku[5] = KA[1];
+        rol128(KA[0], KA[1], 15); // KA << 30
+                keys.kl[0] = KA[0]; keys.kl[1] = KA[1];
+        rol128(KA[0], KA[1], 15) // KA << 45
+                keys.ku[8] = KA[0];
+        rol128(KA[0], KA[1], 15) // KA << 60
+                keys.ku[10] = KA[0]; keys.ku[11] = KA[1];
+        rol128(KA[0], KA[1], 34) // KA << 94
+                keys.ku[14] = KA[0]; keys.ku[15] = KA[1];
+        rol128(KA[0], KA[1], 17) // KA << 111
+                keys.kw[2] = KA[0]; keys.kw[3] = KA[1];
 
         // KB not needed for 128 bit
 
-        // pre-whitening
-        rks->kw[0] = KL[0]; rks->kw[1] = KL[1];
+        // absorb kw1 into subkeys
+        // compensate in F function (every second round due to R' <- L)
+        keys.ku[1]  ^= keys.kw[1];
+        keys.ku[3]  ^= keys.kw[1];
+        keys.ku[5]  ^= keys.kw[1];
+        // FL
+        keys.kw[1]  ^= ((keys.kw[1] & 0xffffffff) & ~(keys.kl[1] & 0xffffffff)) << 32;
+        uint32_t t  = (keys.kw[1] >> 32) & (keys.kl[1] >> 32);
+        keys.kw[1]  ^= expr_rol32_1(t);
+        // compensate in F function (every second round due to R' <- L)
+        keys.ku[7]  ^= keys.kw[1];
+        keys.ku[9]  ^= keys.kw[1];
+        keys.ku[11] ^= keys.kw[1];
+        // FL
+        keys.kw[1]  ^= ((keys.kw[1] & 0xffffffff) & ~(keys.kl[3] & 0xffffffff)) << 32;
+        t           = (keys.kw[1] >> 32) & (keys.kl[3] >> 32);
+        keys.kw[1]  ^= expr_rol32_1(t);
+        // compensate in F function (every second round due to R' <- L)
+        keys.ku[13] ^= keys.kw[1];
+        keys.ku[15] ^= keys.kw[1];
+        keys.ku[17] ^= keys.kw[1];
+        // into kw2
+        keys.kw[2]  ^= keys.kw[1];
 
-        // feistel rounds 0-5
-        rks->ku[0] = KA[0]; rks->ku[1] = KA[1];
-        rol128(KL[0], KL[1], 15); // KL << 15
-        rks->ku[2] = KL[0]; rks->ku[3] = KL[1];
-        rol128(KA[0], KA[1], 15); // KA << 15
-        rks->ku[4] = KA[0]; rks->ku[5] = KA[1];
+        // absorb kw3 into subkeys
+        // compensate in F function
+        keys.ku[16] ^= keys.kw[3];
+        keys.ku[14] ^= keys.kw[3];
+        keys.ku[12] ^= keys.kw[3];
+        // FL
+        keys.kw[3]  ^= ((keys.kw[3] & 0xffffffff) & ~(keys.kl[2] & 0xffffffff)) << 32;
+        t           = (keys.kw[3] >> 32) & (keys.kl[2] >> 32);
+        keys.kw[3]  ^= expr_rol32_1(t);
+        // compensate in F function
+        keys.ku[10] ^= keys.kw[3];
+        keys.ku[8]  ^= keys.kw[3];
+        keys.ku[6]  ^= keys.kw[3];
+        // FL
+        keys.kw[3]  ^= ((keys.kw[3] & 0xffffffff) & ~(keys.kl[0] & 0xffffffff)) << 32;
+        t           = (keys.kw[3] >> 32) & (keys.kl[0] >> 32);
+        keys.kw[3]  ^= expr_rol32_1(t);
+        // compensate in F function
+        keys.ku[4]  ^= keys.kw[3];
+        keys.ku[2]  ^= keys.kw[3];
+        keys.ku[0]  ^= keys.kw[3];
+        // into kw0
+        keys.kw[0]  ^= keys.kw[3];
 
-        // FL/FL-1
-        rol128(KA[0], KA[1], 15); // KA << 30
-        rks->kl[0] = KA[0]; rks->kl[1] = KA[1];
-
-        // feistel rounds 6-11
-        rol128(KL[0], KL[1], 30) // KL << 45
-                rks->ku[6] = KL[0]; rks->ku[7] = KL[1];
-        rol128(KA[0], KA[1], 15) // KA << 45
-                rks->ku[8] = KA[0];
-        rol128(KL[0], KL[1], 15) // KL << 60
-                rks->ku[9] = KL[1];
-        rol128(KA[0], KA[1], 15) // KA << 60
-                rks->ku[10] = KA[0]; rks->ku[11] = KA[1];
-
-        // FL/FL-1
-        rol128(KL[0], KL[1], 17) // KL << 77
-                rks->kl[2] = KL[0]; rks->kl[3] = KL[1];
-
-        // feistel rounds 12-17
-        rol128(KL[0], KL[1], 17) // KL << 94
-                rks->ku[12] = KL[0]; rks->ku[13] = KL[1];
-        rol128(KA[0], KA[1], 34) // KA << 94
-                rks->ku[14] = KA[0]; rks->ku[15] = KA[1];
-        rol128(KL[0], KL[1], 17) // KL << 111
-                rks->ku[16] = KL[0]; rks->ku[17] = KL[1];
-
-        // post-whitening
-        rol128(KA[0], KA[1], 17) // KA << 111
-                rks->kw[2] = KA[0]; rks->kw[3] = KA[1];
+        rks->kw[0]  = keys.kw[0] ^ keys.ku[0];
+        rks->ku[0]  = keys.ku[1];
+        rks->ku[1]  = keys.ku[0] ^ keys.ku[2];
+        rks->ku[2]  = keys.ku[1] ^ keys.ku[3];
+        rks->ku[3]  = keys.ku[2] ^ keys.ku[4];
+        rks->ku[4]  = keys.ku[3] ^ keys.ku[5];
+        uint64_t L  = (keys.ku[6] >> 32) ^ ((keys.ku[6] & 0xffffffff) & ~(keys.kl[0] & 0xffffffff));
+        uint64_t R  = (keys.ku[6] & 0xffffffff) ^ expr_rol32_1(((uint32_t)L & (keys.kl[0] >> 32)));
+        rks->ku[5]  = keys.ku[4] ^ ((L << 32) | R);
+        rks->kl[0]  = keys.kl[0];
+        rks->kl[1]  = keys.kl[1];
+        L = (keys.ku[5] >> 32) ^ ((keys.ku[5] & 0xffffffff) & ~(keys.kl[1] & 0xffffffff));
+        R = (keys.ku[5] & 0xffffffff) ^ expr_rol32_1(((uint32_t)L & (keys.kl[1] >> 32)));
+        rks->ku[6]  = keys.ku[7] ^ ((L << 32) | R);
+        rks->ku[7]  = keys.ku[6] ^ keys.ku[8];
+        rks->ku[8]  = keys.ku[7] ^ keys.ku[9];
+        rks->ku[9]  = keys.ku[8] ^ keys.ku[10];
+        rks->ku[10] = keys.ku[9] ^ keys.ku[11];
+        L = (keys.ku[12] >> 32) ^ ((keys.ku[12] & 0xffffffff) & ~(keys.kl[2] & 0xffffffff));
+        R = (keys.ku[12] & 0xffffffff) ^ expr_rol32_1(((uint32_t)L & (keys.kl[2] >> 32)));
+        rks->ku[11] = keys.ku[10] ^ ((L << 32) | R);
+        rks->kl[2]  = keys.kl[2];
+        rks->kl[3]  = keys.kl[3];
+        L = (keys.ku[11] >> 32) ^ ((keys.ku[11] & 0xffffffff) & ~(keys.kl[3] & 0xffffffff));
+        R = (keys.ku[11] & 0xffffffff) ^ expr_rol32_1(((uint32_t)L & (keys.kl[3] >> 32)));
+        rks->ku[12] = keys.ku[13] ^ ((L << 32) | R);
+        rks->ku[13] = keys.ku[12] ^ keys.ku[14];
+        rks->ku[14] = keys.ku[13] ^ keys.ku[15];
+        rks->ku[15] = keys.ku[14] ^ keys.ku[16];
+        rks->ku[16] = keys.ku[15] ^ keys.ku[17];
+        rks->ku[17] = keys.ku[16];
+        rks->kw[2]  = keys.kw[2] ^ keys.ku[17];
 }
 
-void camellia_naive_generate_round_keys_256(const uint64_t key[restrict 4],
+void camellia_spec_opt_generate_round_keys_256(const uint64_t key[restrict 4],
                                             struct camellia_keys_256 *restrict rks)
 {
         uint64_t KL[2], KR[2], KA[2], KB[2];
+
+        // compute KL
         memcpy(KL, &key[0], sizeof(KL));
-        memcpy(KR, &key[2], sizeof(KR));
-        memcpy(KA, KL, sizeof(KA));
+
+        // compute KR
+        memcpy(KR, &key[2], sizeof(KL));
 
         // compute KA
-        KA[0] ^= KR[0]; KA[1] ^= KR[1];
-        camellia_naive_feistel_round(KA, keysched_const[0]);
-        camellia_naive_feistel_round(KA, keysched_const[1]);
-        KA[0] ^= KL[0], KA[1] ^= KL[1];
-        camellia_naive_feistel_round(KA, keysched_const[2]);
-        camellia_naive_feistel_round(KA, keysched_const[3]);
+        memcpy(KA, KL, sizeof(KA));
+
+        KA[0] ^= key[2]; KA[1] ^= key[3];
+        camellia_spec_opt_feistel_round(KA, keysched_const[0]);
+        camellia_spec_opt_feistel_round(KA, keysched_const[1]);
+        KA[0] ^= key[0], KA[1] ^= key[1];
+        camellia_spec_opt_feistel_round(KA, keysched_const[2]);
+        camellia_spec_opt_feistel_round(KA, keysched_const[3]);
 
         // compute KB
         memcpy(KB, KA, sizeof(KB));
+
         KB[0] ^= KR[0]; KB[1] ^= KR[1];
-        camellia_naive_feistel_round(KB, keysched_const[4]);
-        camellia_naive_feistel_round(KB, keysched_const[5]);
+        camellia_spec_opt_feistel_round(KB, keysched_const[4]);
+        camellia_spec_opt_feistel_round(KB, keysched_const[5]);
 
-        // pre-whitening
+        // KL-dependent subkeys
         rks->kw[0] = KL[0]; rks->kw[1] = KL[1];
-
-        // feistel rounds 0-5
-        rks->ku[0] = KB[0]; rks->ku[1] = KB[1];
-        rol128(KR[0], KR[1], 15); // KR << 15
-        rks->ku[2] = KR[0]; rks->ku[3] = KR[1];
-        rol128(KA[0], KA[1], 15); // KA << 15
-        rks->ku[4] = KA[0]; rks->ku[5] = KA[1];
-
-        // FL/FL-1
-        rol128(KR[0], KR[1], 15); // KR << 30
-        rks->kl[0] = KR[0]; rks->kl[1] = KR[1];
-
-        // feistel rounds 6-11
-        rol128(KB[0], KB[1], 30) // KB << 30
-                rks->ku[6] = KB[0]; rks->ku[7] = KB[1];
         rol128(KL[0], KL[1], 45) // KL << 45
                 rks->ku[8] = KL[0]; rks->ku[9] = KL[1];
-        rol128(KA[0], KA[1], 30) // KA << 45
-                rks->ku[10] = KA[0]; rks->ku[11] = KA[1];
-
-        // FL/FL-1
         rol128(KL[0], KL[1], 15) // KL << 60
                 rks->kl[2] = KL[0]; rks->kl[3] = KL[1];
-
-        // feistel rounds 12-17
-        rol128(KR[0], KR[1], 30) // KR << 60
-                rks->ku[12] = KR[0]; rks->ku[13] = KR[1];
-        rol128(KB[0], KB[1], 30) // KB << 60
-                rks->ku[14] = KB[0]; rks->ku[15] = KB[1];
         rol128(KL[0], KL[1], 17) // KL << 77
                 rks->ku[16] = KL[0]; rks->ku[17] = KL[1];
-
-        // FL/FL-1
-        rol128(KA[0], KA[1], 32) // KA << 77
-                rks->kl[4] = KA[0]; rks->kl[5] = KA[1];
-
-        // feistel rounds 18-25
-        rol128(KR[0], KR[1], 34) // KR << 94
-                rks->ku[18] = KR[0]; rks->ku[19] = KR[1];
-        rol128(KA[0], KA[1], 17) // KA << 94
-                rks->ku[20] = KA[0]; rks->ku[21] = KA[1];
         rol128(KL[0], KL[1], 34) // KL << 111
                 rks->ku[22] = KL[0]; rks->ku[23] = KL[1];
 
-        // post-whitening
+        // KR-dependent subkeys
+        rol128(KR[0], KR[1], 15); // KR << 15
+        rks->ku[2] = KR[0]; rks->ku[3] = KR[1];
+        rol128(KR[0], KR[1], 15); // KR << 30
+        rks->kl[0] = KR[0]; rks->kl[1] = KR[1];
+        rol128(KR[0], KR[1], 30) // KR << 60
+                rks->ku[12] = KR[0]; rks->ku[13] = KR[1];
+        rol128(KR[0], KR[1], 34) // KR << 94
+                rks->ku[18] = KR[0]; rks->ku[19] = KR[1];
+
+        // KA-dependent subkeys
+        rol128(KA[0], KA[1], 15); // KA << 15
+        rks->ku[4] = KA[0]; rks->ku[5] = KA[1];
+        rol128(KA[0], KA[1], 30) // KA << 45
+                rks->ku[10] = KA[0]; rks->ku[11] = KA[1];
+        rol128(KA[0], KA[1], 32) // KA << 77
+                rks->kl[4] = KA[0]; rks->kl[5] = KA[1];
+        rol128(KA[0], KA[1], 17) // KA << 94
+                rks->ku[20] = KA[0]; rks->ku[21] = KA[1];
+
+        // KB-dependent subkeys
+
+        rks->ku[0] = KB[0]; rks->ku[1] = KB[1];
+        rol128(KB[0], KB[1], 30) // KB << 30
+                rks->ku[6] = KB[0]; rks->ku[7] = KB[1];
+        rol128(KB[0], KB[1], 30) // KB << 60
+                rks->ku[14] = KB[0]; rks->ku[15] = KB[1];
         rol128(KB[0], KB[1], 51) // KB << 111
                 rks->kw[2] = KB[0]; rks->kw[3] = KB[1];
 }
 
-void camellia_naive_encrypt_128(uint64_t c[restrict 2],
+void camellia_spec_opt_encrypt_128(uint64_t c[restrict 2],
                             const uint64_t m[restrict 2],
                             struct camellia_keys_128 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
-        c[0] ^= rks->kw[0]; c[1] ^= rks->kw[1];
+        c[0] ^= rks->kw[0];
 
         for (int i = 0; i < 6; i++) {
-                camellia_naive_feistel_round(c, rks->ku[i + 0]);
+                camellia_spec_opt_feistel_round(c, rks->ku[i + 0]);
         }
 
-        c[0] = camellia_naive_FL(c[0], rks->kl[0]);
-        c[1] = camellia_naive_FL_inv(c[1], rks->kl[1]);
+        c[0] = camellia_spec_opt_FL(c[0], rks->kl[0]);
+        c[1] = camellia_spec_opt_FL_inv(c[1], rks->kl[1]);
 
         for (int i = 0; i < 6; i++) {
-                camellia_naive_feistel_round(c, rks->ku[i + 6]);
+                camellia_spec_opt_feistel_round(c, rks->ku[i + 6]);
         }
 
-        c[0] = camellia_naive_FL(c[0], rks->kl[2]);
-        c[1] = camellia_naive_FL_inv(c[1], rks->kl[3]);
+        c[0] = camellia_spec_opt_FL(c[0], rks->kl[2]);
+        c[1] = camellia_spec_opt_FL_inv(c[1], rks->kl[3]);
 
         for (int i = 0; i < 6; i++) {
-                camellia_naive_feistel_round(c, rks->ku[i + 12]);
+                camellia_spec_opt_feistel_round(c, rks->ku[i + 12]);
         }
 
         // swap c[0] and c[1] (concatenation of R||L)
         uint64_t t = c[0];
         c[0] = c[1]; c[1] = t;
 
-        c[0] ^= rks->kw[2]; c[1] ^= rks->kw[3];
+        c[0] ^= rks->kw[2];
 }
 
-void camellia_naive_decrypt_128(uint64_t m[restrict 2],
+void camellia_spec_opt_decrypt_128(uint64_t m[restrict 2],
                             const uint64_t c[restrict 2],
                             struct camellia_keys_128 *restrict rks)
 {
@@ -433,58 +508,58 @@ void camellia_naive_decrypt_128(uint64_t m[restrict 2],
         m[0] = m[1]; m[1] = t;
 
         for (int i = 5; i >= 0; i--) {
-                camellia_naive_feistel_round_inv(m, rks->ku[i + 12]);
+                camellia_spec_opt_feistel_round_inv(m, rks->ku[i + 12]);
         }
 
-        m[1] = camellia_naive_FL(m[1], rks->kl[3]);
-        m[0] = camellia_naive_FL_inv(m[0], rks->kl[2]);
+        m[1] = camellia_spec_opt_FL(m[1], rks->kl[3]);
+        m[0] = camellia_spec_opt_FL_inv(m[0], rks->kl[2]);
 
         for (int i = 5; i >= 0; i--) {
-                camellia_naive_feistel_round_inv(m, rks->ku[i + 6]);
+                camellia_spec_opt_feistel_round_inv(m, rks->ku[i + 6]);
         }
 
-        m[1] = camellia_naive_FL(m[1], rks->kl[1]);
-        m[0] = camellia_naive_FL_inv(m[0], rks->kl[0]);
+        m[1] = camellia_spec_opt_FL(m[1], rks->kl[1]);
+        m[0] = camellia_spec_opt_FL_inv(m[0], rks->kl[0]);
 
         for (int i = 5; i >= 0; i--) {
-                camellia_naive_feistel_round_inv(m, rks->ku[i + 0]);
+                camellia_spec_opt_feistel_round_inv(m, rks->ku[i + 0]);
         }
 
         m[0] ^= rks->kw[0]; m[1] ^= rks->kw[1];
 
 }
 
-void camellia_naive_encrypt_256(uint64_t c[restrict 2],
+void camellia_spec_opt_encrypt_256(uint64_t c[restrict 2],
                             const uint64_t m[restrict 2],
                             struct camellia_keys_256 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
-        c[0] ^= rks->kw[0]; c[1] ^= rks->kw[1];
+        c[0] ^= rks->kw[0];
 
         for (int i = 0; i < 6; i++) {
-                camellia_naive_feistel_round(c, rks->ku[i + 0]);
+                camellia_spec_opt_feistel_round(c, rks->ku[i + 0]);
         }
 
-        c[0] = camellia_naive_FL(c[0], rks->kl[0]);
-        c[1] = camellia_naive_FL_inv(c[1], rks->kl[1]);
+        c[0] = camellia_spec_opt_FL(c[0], rks->kl[0]);
+        c[1] = camellia_spec_opt_FL_inv(c[1], rks->kl[1]);
 
         for (int i = 0; i < 6; i++) {
-                camellia_naive_feistel_round(c, rks->ku[i + 6]);
+                camellia_spec_opt_feistel_round(c, rks->ku[i + 6]);
         }
 
-        c[0] = camellia_naive_FL(c[0], rks->kl[2]);
-        c[1] = camellia_naive_FL_inv(c[1], rks->kl[3]);
+        c[0] = camellia_spec_opt_FL(c[0], rks->kl[2]);
+        c[1] = camellia_spec_opt_FL_inv(c[1], rks->kl[3]);
 
         for (int i = 0; i < 6; i++) {
-                camellia_naive_feistel_round(c, rks->ku[i + 12]);
+                camellia_spec_opt_feistel_round(c, rks->ku[i + 12]);
         }
 
-        c[0] = camellia_naive_FL(c[0], rks->kl[4]);
-        c[1] = camellia_naive_FL_inv(c[1], rks->kl[5]);
+        c[0] = camellia_spec_opt_FL(c[0], rks->kl[4]);
+        c[1] = camellia_spec_opt_FL_inv(c[1], rks->kl[5]);
 
         for (int i = 0; i < 6; i++) {
-                camellia_naive_feistel_round(c, rks->ku[i + 18]);
+                camellia_spec_opt_feistel_round(c, rks->ku[i + 18]);
         }
 
         // swap c[0] and c[1] (concatenation of R||L)
@@ -494,7 +569,7 @@ void camellia_naive_encrypt_256(uint64_t c[restrict 2],
         c[0] ^= rks->kw[2]; c[1] ^= rks->kw[3];
 }
 
-void camellia_naive_decrypt_256(uint64_t m[restrict 2],
+void camellia_spec_opt_decrypt_256(uint64_t m[restrict 2],
                             const uint64_t c[restrict 2],
                             struct camellia_keys_256 *restrict rks)
 {
@@ -507,28 +582,28 @@ void camellia_naive_decrypt_256(uint64_t m[restrict 2],
         m[0] = m[1]; m[1] = t;
 
         for (int i = 5; i >= 0; i--) {
-                camellia_naive_feistel_round_inv(m, rks->ku[i + 18]);
+                camellia_spec_opt_feistel_round_inv(m, rks->ku[i + 18]);
         }
 
-        m[1] = camellia_naive_FL(m[1], rks->kl[5]);
-        m[0] = camellia_naive_FL_inv(m[0], rks->kl[4]);
+        m[1] = camellia_spec_opt_FL(m[1], rks->kl[5]);
+        m[0] = camellia_spec_opt_FL_inv(m[0], rks->kl[4]);
 
         for (int i = 5; i >= 0; i--) {
-                camellia_naive_feistel_round_inv(m, rks->ku[i + 12]);
+                camellia_spec_opt_feistel_round_inv(m, rks->ku[i + 12]);
         }
 
-        m[1] = camellia_naive_FL(m[1], rks->kl[3]);
-        m[0] = camellia_naive_FL_inv(m[0], rks->kl[2]);
+        m[1] = camellia_spec_opt_FL(m[1], rks->kl[3]);
+        m[0] = camellia_spec_opt_FL_inv(m[0], rks->kl[2]);
 
         for (int i = 5; i >= 0; i--) {
-                camellia_naive_feistel_round_inv(m, rks->ku[i + 6]);
+                camellia_spec_opt_feistel_round_inv(m, rks->ku[i + 6]);
         }
 
-        m[1] = camellia_naive_FL(m[1], rks->kl[1]);
-        m[0] = camellia_naive_FL_inv(m[0], rks->kl[0]);
+        m[1] = camellia_spec_opt_FL(m[1], rks->kl[1]);
+        m[0] = camellia_spec_opt_FL_inv(m[0], rks->kl[0]);
 
         for (int i = 5; i >= 0; i--) {
-                camellia_naive_feistel_round_inv(m, rks->ku[i + 0]);
+                camellia_spec_opt_feistel_round_inv(m, rks->ku[i + 0]);
         }
 
         m[0] ^= rks->kw[0]; m[1] ^= rks->kw[1];

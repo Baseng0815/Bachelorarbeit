@@ -349,3 +349,31 @@ to bytes can then be done simply by repeatedly shifting and ORing the registers
 together.
 
 \section{Strategies for Camellia}
+
+\subsection{Platform-independent techniques}
+
+The original paper proposes various platform-independent ways to implement
+Camellia efficiently. Only some of these apply to the ARMv8 architecture since
+features like the inline barrel shifter and bitfield manipulation instructions
+generally offer better performance.
+
+\begin{description}
+    \item[XOR cancellation property in key schedule:]
+        \begin{align*}
+            K_A&\leftarrow K_L\oplus K_R \\
+            K_A&\leftarrow FE(FE(K_A, \Sigma_0=0xa09e667f3bcc908b), \Sigma_1=0xb67ae8584caa73b2) \\
+            K_A&\leftarrow K_A\oplus K_L \\
+        \end{align*}
+
+        causes cancellations, allowing us to eliminate some operations by
+        replacing it with the following:
+
+        \begin{align*}
+            K_{A_L}&\leftarrow F(K_{L_R}\oplus F(K_{L_L}, \Sigma_0)) \\
+            K_{A_R}&\leftarrow F(K_{L_L}\oplus \Sigma_1)
+        \end{align*}
+
+    \item[Absorption of whitening keys:] Key additions $kw_1,kw_3$ can be
+        absorped into other subkeys:
+
+\end{description}
