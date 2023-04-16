@@ -303,29 +303,6 @@ static void benchmark_camellia_spec_opt(void)
         double seconds = elapsed_seconds(&st, &et);
         double megs = NT * sizeof(m) / (1024 * 1024);
         printf("throughput: %f MiB/s\n", megs / seconds);
-
-        printf("Benchmaring CAMELLIA_SPEC_OPT 256-bit...\n");
-        uint64_t key_256[4];
-        struct camellia_keys_256 rks_256;
-
-        memset(cycles, 0, sizeof(cycles));
-        for (int i = 0; i < NL; i++) {
-                cycles[0] += TIME(camellia_spec_opt_generate_round_keys_256(key_256, &rks_256));
-                cycles[1] += TIME(camellia_spec_opt_encrypt_256(c, m, &rks_256));
-        }
-
-        printf("%f %f\n",
-               cycles[0] / (float)NL / 16.0f,
-               cycles[1] / (float)NL / 16.0f);
-
-        gettimeofday(&st, NULL);
-        for (int i = 0; i < NT; i++) {
-                camellia_spec_opt_encrypt_256(c, m, &rks_256);
-        }
-        gettimeofday(&et, NULL);
-        seconds = elapsed_seconds(&st, &et);
-        megs = NT * sizeof(m) / (1024 * 1024);
-        printf("throughput: %f MiB/s\n", megs / seconds);
 }
 
 int main(int argc, char *argv[])
