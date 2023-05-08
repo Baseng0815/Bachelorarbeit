@@ -118,8 +118,12 @@ The confusion layer can now be performed through one \texttt{TBL} instruction:
 
 \subsection{Bitslicing}
 
-Bitslicing refers to the technique of splitting up $n$ bits into $m$ slices to
-achieve a more efficient representation to operate on. The structure of
+Bitsliced implementation techniques were first introduced to improve the performance
+of DES in 1997 and work by viewing a processor with $n$-bit registers as a
+machine capable of executing $n$ bitwise operations at
+once\cite{desslicing:1997}. Bitslicing offers a performance advantage by
+splitting up $n$ bits into $m$ slices to achieve a more efficient
+representation which can exploit this bitwise parallelism. The structure of
 \texttt{GIFT} naturally offers possibilities for bitslicing. We split the
 cipher state bits $b_{63}b_{62}\dots b_0$ into four slices $S_i,
 i\in\{0,1,2,3\}$ such that the $i$-th slice contains all $i$-th bits of the
@@ -144,8 +148,9 @@ individual S-boxes. This is equivalent to transposing the bit matrix.
 
 This representation offers multiple advantages. We first note that computation
 of the S-box can be executed in parallel, similar to the \texttt{vperm}
-technique above. This can be done by finding an algorithmic way to apply the
-S-box which has already been proposed by the original \texttt{GIFT} authors:
+technique above. This can be done by finding a bitwise instruction sequence to
+apply the S-box which has already been proposed by the original \texttt{GIFT}
+authors:
 
 \begin{align*}
     S_1&\leftarrow S_1\oplus (S_0\land S_2) \\
@@ -359,9 +364,11 @@ generally offer better performance.
 
 \begin{description}
     \item[XOR cancellation property in key schedule:]
+        While deriving $K_A$ in the key schedule, the instruction sequence
+
         \begin{align*}
             K_A&\leftarrow K_L\oplus K_R \\
-            K_A&\leftarrow FE(FE(K_A, \Sigma_0=\mathrm{0xa09e667f3bcc908b}), \Sigma_1=\mathrm{0xb67ae8584caa73b2}) \\
+            K_A&\leftarrow FE(FE(K_A, \Sigma_0), \Sigma_1) \\
             K_A&\leftarrow K_A\oplus K_L \\
         \end{align*}
 
@@ -376,7 +383,7 @@ generally offer better performance.
     \item[Absorption of whitening keys:] Whitening keys $kw_1,kw_3$ can be
         absorbed into other subkeys to save two XOR operations
 
-    \item[Efficiently computing $P\circ S$:] This technique applies to 64-bit processors.
+    \item[Efficiently computing $(P\circ S)$:] This technique applies to 64-bit processors.
         By preparing tables
 
         \begin{alignat*}{9}
@@ -390,7 +397,7 @@ generally offer better performance.
             & SP_7(y_{7(8)})=(&s_1(y_7),&& s_1(y_7),&& s_1(y_7),&& 0,&& s_1(y_7),&& s_1(y_7),&& s_1(y_7),&& 0&)
         \end{alignat*}
 
-        , we can compute $(P\circ S)(X_{(64)})$ with only 8 table lookups and 7
+        , we can compute $(P\circ S)(X_{(64)})$ using only 8 table lookups and 7
         XORs in the following way:
 
         \[
@@ -398,3 +405,16 @@ generally offer better performance.
         \]
 
 \end{description}
+
+\subsection{Byteslicing}
+
+A byte-sliced implementation strategy for ARMv8 can be derived from already
+existing x86-optimized implementations utilizing the AES-NI advanced encryption
+standard instruction set \cite{bcfastimplx86:2013}. NEON itself possesses
+cryptographic extensions for finite field arithmetic and AES as well as SHA
+calculations. These can be used to produce an accelerated Camellia implementation
+due to the algebraic similarity of the AES- and Camellia S-boxes.
+
+\subsubsection{Hardware-accelerated Camellia S-box}
+
+

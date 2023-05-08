@@ -4,17 +4,17 @@
 #include <stdio.h>
 #include <string.h>
 
-static uint64_t pack_shf_u64[4] = {
+static uint64_t pack_shf_u64[] = {
         0x1303120211011000UL, 0x1707160615051404UL, // S0/S1/S2/S3
         0x1b0b1a0a19091808UL, 0x1f0f1e0e1d0d1c0cUL, // S4/S5/S6/S7
 };
 
-static uint64_t pack_shf_inv_u64[4] = {
+static uint64_t pack_shf_inv_u64[] = {
         0x0e0c0a0806040200UL, 0x1e1c1a1816141210UL, // S0/S1/S2/S3
         0x0f0d0b0907050301UL, 0x1f1d1b1917151311UL, // S4/S5/S6/S7
 };
 
-static uint64_t perm_u64[8] = {
+static uint64_t perm_u64[] = {
         0x0f0b07030c080400UL, 0x0d0905010e0a0602UL, // S0/S4
         0x0c0804000d090501UL, 0x0e0a06020f0b0703UL, // S1/S5
         0x0d0905010e0a0602UL, 0x0f0b07030c080400UL, // S2/S6
@@ -22,7 +22,7 @@ static uint64_t perm_u64[8] = {
 };
 
 
-static uint64_t perm_inv_u64[8] = {
+static uint64_t perm_inv_u64[] = {
         0x05090d0104080c00UL, 0x070b0f03060a0e02UL, // S0/S4
         0x090d0105080c0004UL, 0x0b0f03070a0e0206UL, // S1/S5
         0x0d0105090c000408UL, 0x0f03070b0e02060aUL, // S2/S6

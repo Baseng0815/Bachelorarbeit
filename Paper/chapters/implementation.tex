@@ -40,6 +40,8 @@ extensions. The cipher state is stored as a 64-bit word and one round consists
 in extracting the 4-bit S-boxes, looking up table values, collecting these in
 an accumulator and finally adding the round key.
 
+% TODO add bitfield extract explanation here
+
 \lstinputlisting[language=c, firstline=77, lastline=87]{../impl/table/gift_table.c}
 \lstinputlisting[language=c, firstline=89, lastline=101]{../impl/table/gift_table.c}
 

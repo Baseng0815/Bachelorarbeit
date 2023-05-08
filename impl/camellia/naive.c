@@ -258,7 +258,7 @@ void camellia_naive_feistel_round_inv(uint64_t state[2], const uint64_t kr)
 }
 
 void camellia_naive_generate_round_keys_128(const uint64_t key[restrict 2],
-                                        struct camellia_keys_128 *restrict rks)
+                                        struct camellia_rks_128 *restrict rks)
 {
         uint64_t KL[2], KA[2];
         memcpy(KL, key, sizeof(KL));
@@ -315,7 +315,7 @@ void camellia_naive_generate_round_keys_128(const uint64_t key[restrict 2],
 }
 
 void camellia_naive_generate_round_keys_256(const uint64_t key[restrict 4],
-                                            struct camellia_keys_256 *restrict rks)
+                                            struct camellia_rks_256 *restrict rks)
 {
         uint64_t KL[2], KR[2], KA[2], KB[2];
         memcpy(KL, &key[0], sizeof(KL));
@@ -389,7 +389,7 @@ void camellia_naive_generate_round_keys_256(const uint64_t key[restrict 4],
 
 void camellia_naive_encrypt_128(uint64_t c[restrict 2],
                             const uint64_t m[restrict 2],
-                            struct camellia_keys_128 *restrict rks)
+                            struct camellia_rks_128 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
@@ -422,7 +422,7 @@ void camellia_naive_encrypt_128(uint64_t c[restrict 2],
 
 void camellia_naive_decrypt_128(uint64_t m[restrict 2],
                             const uint64_t c[restrict 2],
-                            struct camellia_keys_128 *restrict rks)
+                            struct camellia_rks_128 *restrict rks)
 {
         memcpy(m, c, sizeof(m[0]) * 2);
 
@@ -456,7 +456,7 @@ void camellia_naive_decrypt_128(uint64_t m[restrict 2],
 
 void camellia_naive_encrypt_256(uint64_t c[restrict 2],
                             const uint64_t m[restrict 2],
-                            struct camellia_keys_256 *restrict rks)
+                            struct camellia_rks_256 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
@@ -496,7 +496,7 @@ void camellia_naive_encrypt_256(uint64_t c[restrict 2],
 
 void camellia_naive_decrypt_256(uint64_t m[restrict 2],
                             const uint64_t c[restrict 2],
-                            struct camellia_keys_256 *restrict rks)
+                            struct camellia_rks_256 *restrict rks)
 {
         memcpy(m, c, sizeof(m[0]) * 2);
 

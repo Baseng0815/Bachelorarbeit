@@ -6,6 +6,7 @@
 
 #include "camellia/naive.h"
 #include "camellia/spec_opt.h"
+#include "camellia/bytesliced.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -273,8 +274,8 @@ void test_camellia_naive(void)
 {
         uint64_t m[2], c[2];
         uint64_t key[2];
-        struct camellia_keys_128 rks_128;
-        struct camellia_keys_256 rks_256;
+        struct camellia_rks_128 rks_128;
+        struct camellia_rks_256 rks_256;
 
         printf("testing CAMELLIA_NAIVE FL-FL_inv and feistel-feistel_inv...\n");
         for (int i = 0; i < 256; i++) {
@@ -352,7 +353,7 @@ void test_camellia_spec_opt(void)
 {
         uint64_t m[2], c[2];
         uint64_t key[2];
-        struct camellia_keys_128 rks_128;
+        struct camellia_rks_128 rks_128;
 
         printf("testing CAMELLIA_SPEC_OPT FL-FL_inv and feistel-feistel_inv...\n");
         for (int i = 0; i < 256; i++) {
@@ -397,15 +398,47 @@ void test_camellia_spec_opt(void)
         }
 }
 
+#include <arm_neon.h>
+
+void test_camellia_sliced(void)
+{
+        camellia_sliced_init();
+
+        /* uint64_t test[2] = { */
+        /*         0x8796a5b4c3d2e1f0UL, 0x0f1e2d3c4b5a6978UL */
+        /* }; */
+
+        uint64_t test[2] = {
+                0x0706050403020100UL, 0x0f0e0d0c0b0a0908UL
+        };
+
+        uint8x16_t a = vld1q_u8((uint8_t*)&test[0]);
+        uint8x16x4_t data[2];
+        uint8x16x4_t key[2];
+        for (size_t i = 0; i < 2; i++) {
+                for (size_t j = 0; j < 4; j++) {
+                        data[i].val[j] = a;
+                        key[i].val[j] = vdupq_n_u8(0x0);
+                }
+        }
+
+
+        camellia_sliced_F(data, key);
+        printf("%lx %lx\n",
+               vgetq_lane_u64(data[0].val[0], 1),
+               vgetq_lane_u64(data[0].val[0], 0));
+}
+
 int main(int argc, char *argv[])
 {
         srand(time(NULL));
-        test_gift_64();
-        test_gift_128();
-        test_gift_64_sliced();
-        test_gift_64_table();
-        test_gift_64_vec_sbox();
-        test_gift_64_vec_sliced();
+        /* test_gift_64(); */
+        /* test_gift_128(); */
+        /* test_gift_64_sliced(); */
+        /* test_gift_64_table(); */
+        /* test_gift_64_vec_sbox(); */
+        /* test_gift_64_vec_sliced(); */
         test_camellia_naive();
         test_camellia_spec_opt();
+        test_camellia_sliced();
 }

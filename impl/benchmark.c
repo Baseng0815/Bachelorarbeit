@@ -230,7 +230,7 @@ static void benchmark_camellia_naive(void)
 
         uint64_t key[2];
         uint64_t m[2], c[2];
-        struct camellia_keys_128 rks;
+        struct camellia_rks_128 rks;
 
         uint64_t cycles[2] = { 0UL };
         for (int i = 0; i < NL; i++) {
@@ -254,7 +254,7 @@ static void benchmark_camellia_naive(void)
 
         printf("Benchmaring CAMELLIA_NAIVE 256-bit...\n");
         uint64_t key_256[4];
-        struct camellia_keys_256 rks_256;
+        struct camellia_rks_256 rks_256;
 
         memset(cycles, 0, sizeof(cycles));
         for (int i = 0; i < NL; i++) {
@@ -282,7 +282,7 @@ static void benchmark_camellia_spec_opt(void)
 
         uint64_t key[2];
         uint64_t m[2], c[2];
-        struct camellia_keys_128 rks;
+        struct camellia_rks_128 rks;
 
         uint64_t cycles[2] = { 0UL };
         for (int i = 0; i < NL; i++) {

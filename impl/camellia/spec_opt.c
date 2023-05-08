@@ -88,7 +88,7 @@ void camellia_spec_opt_feistel_round_inv(uint64_t state[2], const uint64_t kr)
 }
 
 void camellia_spec_opt_generate_round_keys_128(const uint64_t key[restrict 2],
-                                        struct camellia_keys_128 *restrict rks)
+                                        struct camellia_rks_128 *restrict rks)
 {
         uint64_t KL[2], KA[2];
 
@@ -106,7 +106,7 @@ void camellia_spec_opt_generate_round_keys_128(const uint64_t key[restrict 2],
         camellia_spec_opt_feistel_round(KA, keysched_const[2]);
         camellia_spec_opt_feistel_round(KA, keysched_const[3]);
 
-        struct camellia_keys_128 keys;
+        struct camellia_rks_128 keys;
 
         // KL-dependent subkeys
         keys.kw[0] = KL[0]; keys.kw[1] = KL[1];
@@ -145,7 +145,7 @@ void camellia_spec_opt_generate_round_keys_128(const uint64_t key[restrict 2],
 
 void camellia_spec_opt_encrypt_128(uint64_t c[restrict 2],
                             const uint64_t m[restrict 2],
-                            struct camellia_keys_128 *restrict rks)
+                            struct camellia_rks_128 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
@@ -181,7 +181,7 @@ void camellia_spec_opt_encrypt_128(uint64_t c[restrict 2],
 
 void camellia_spec_opt_decrypt_128(uint64_t m[restrict 2],
                             const uint64_t c[restrict 2],
-                            struct camellia_keys_128 *restrict rks)
+                            struct camellia_rks_128 *restrict rks)
 {
         memcpy(m, c, sizeof(m[0]) * 2);
 
