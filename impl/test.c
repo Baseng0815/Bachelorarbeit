@@ -398,19 +398,29 @@ void test_camellia_spec_opt(void)
         }
 }
 
-#include <arm_neon.h>
-
 void test_camellia_sliced(void)
 {
         camellia_sliced_init();
 
-        /* uint64_t test[2] = { */
-        /*         0x8796a5b4c3d2e1f0UL, 0x0f1e2d3c4b5a6978UL */
-        /* }; */
+        uint64_t test[16][2];
+        /* for (size_t i = 0; i < 16; i++) { */
+        /*         test[i][0] = 0x8796a5b4c3d2e1f0UL; */
+        /*         test[i][1] = 0x0f1e2d3c4b5a6978UL; */
+        /* } */
 
-        uint64_t test[2] = {
-                0x0706050403020100UL, 0x0f0e0d0c0b0a0908UL
-        };
+        for (size_t i = 0; i < 16; i++) {
+                test[i][0] = 0x0706050403020100UL;
+                test[i][1] = 0x0f0e0d0c0b0a0908UL;
+        }
+
+        uint8x16x4_t packed[4];
+        camellia_sliced_pack(packed, test);
+        for (size_t i = 0; i < 4; i++) {
+                for (size_t j = 0; j < 4; j++) {
+                        printf("%lx %lx\n", vgetq_lane_u64(packed[i].val[j], 1),
+                              vgetq_lane_u64(packed[i].val[j], 0));
+                }
+        }
 
         uint8x16_t a = vld1q_u8((uint8_t*)&test[0]);
         uint8x16x4_t data[2];
@@ -423,10 +433,10 @@ void test_camellia_sliced(void)
         }
 
 
-        camellia_sliced_F(data, key);
-        printf("%lx %lx\n",
-               vgetq_lane_u64(data[0].val[0], 1),
-               vgetq_lane_u64(data[0].val[0], 0));
+        /* camellia_sliced_F(data, key); */
+        /* printf("%lx %lx\n", */
+        /*        vgetq_lane_u64(data[0].val[0], 1), */
+        /*        vgetq_lane_u64(data[0].val[0], 0)); */
 }
 
 int main(int argc, char *argv[])

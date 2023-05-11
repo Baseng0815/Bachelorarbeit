@@ -168,8 +168,10 @@ static const uint8_t s4[256] =
         (_a) = ((_a) << (_n)) | ((_t) >> (64 - (_n)));\
 }
 
-#define expr_rol32_1(_a)\
-        (((_a) << 1) | ((_a) >> 31))
+static uint32_t rol32_1(uint32_t a)
+{
+        return (a << 1) | (a >> 31);
+}
 
 uint64_t camellia_naive_S(uint64_t X)
 {
@@ -223,7 +225,7 @@ uint64_t camellia_naive_FL(uint64_t X, const uint64_t kl)
         const uint32_t klL = (kl >> 32);
         const uint32_t klR = (kl >> 0);
 
-        const uint32_t YR = expr_rol32_1(XL & klL) ^ XR;
+        const uint32_t YR = rol32_1(XL & klL) ^ XR;
         const uint32_t YL = (YR | klR) ^ XL;
 
         return ((uint64_t)YL << 32) | (uint64_t)YR;
@@ -238,7 +240,7 @@ uint64_t camellia_naive_FL_inv(uint64_t Y, const uint64_t kl)
         const uint32_t klR = (kl >> 0);
 
         const uint32_t XL = (YR | klR) ^ YL;
-        const uint32_t XR = expr_rol32_1(XL & klL) ^ YR;
+        const uint32_t XR = rol32_1(XL & klL) ^ YR;
 
         return ((uint64_t)XL << 32) | (uint64_t)XR;
 }

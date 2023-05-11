@@ -234,6 +234,7 @@ $M$ in using only three XOR-, one AND- and two shift operations.
     &\qquad A=A\oplus (T\ll N) \\
 \end{align*}
 
+% TODO change shr/shl implementation to only use vector registers
 One caveat of this approach is the fact that NEON registers cannot be shifted
 in their entirety due to the fact bits are not able to cross lanes. This leads
 to the problem of being able to shift at most two lanes of 64 bits at once. We
@@ -408,13 +409,177 @@ generally offer better performance.
 
 \subsection{Byteslicing}
 
-A byte-sliced implementation strategy for ARMv8 can be derived from already
-existing x86-optimized implementations utilizing the AES-NI advanced encryption
-standard instruction set \cite{bcfastimplx86:2013}. NEON itself possesses
-cryptographic extensions for finite field arithmetic and AES as well as SHA
-calculations. These can be used to produce an accelerated Camellia implementation
-due to the algebraic similarity of the AES- and Camellia S-boxes.
+
+\subsubsection{Packing}
+
+We encrypt 16 plaintext blocks in parallel so we can fill 16 vector registers
+with register $i$ containing all $i$-th bytes. This lends itself well to a NEON
+implementation since S-boxes as well as the FL layer, Feistel round and
+packing/unpacking functions can be implemented efficiently.
+
+
 
 \subsubsection{Hardware-accelerated Camellia S-box}
 
+A byte-sliced implementation strategy for the S-box on ARMv8 can be derived
+from already existing x86-optimized implementations utilizing the AES-NI
+advanced encryption standard instruction set \cite{bcfastimplx86:2013}. NEON
+itself possesses cryptographic extensions for finite field arithmetic and AES
+as well as SHA calculations. These can be used to produce an accelerated
+Camellia implementation due to the algebraic similarity of the AES- and
+Camellia S-boxes.
 
+The AES S-box works by multiplicatively inverting $x\in\F{8}$ over GF$(2^8)$ and then
+applying an affine transformation $A$:
+
+\[
+    s(x):\F{8}\rightarrow\F{8}, x\mapsto A(x^{-1}_{\text{GF}(2^8)})
+\]
+
+The Camellia S-box $s_0$ is defined as follows:
+
+\[
+    s_0(x):\F{8}\rightarrow\F{8}, x\mapsto h(g(f(x\oplus 0xc5)))\oplus 0x6e
+\]
+
+with affine transformations $h,f$ and the multiplicative inversion function $g$
+in the composite field GF$((2^4)^2)$. Because Galois fields of equal size are
+isomorphic, there are affine isomorphisms $\delta,\delta^{-1}$ between
+GF($2^8$) and GF($(2^4)^2$) respectively\cite{satohmorioka:2003}:
+
+\begin{alignat*}{2}
+    \delta&:\text{GF}(2^8)&&\rightarrow\text{GF}((2^4)^2) \\
+    \delta^{-1}&:\text{GF}((2^4)^2)&&\rightarrow\text{GF}(2^8)
+\end{alignat*}
+
+NEON provides the \texttt{AESE} instruction for one round of AES encryption
+which works on a 128-bit vector register. By applying the inverse of ShiftRow
+to x, we can apply the AES S-box to 16 bytes at once.
+
+\[
+    \texttt{AESE}(x)=\text{SubBytes}(\text{ShiftRow(x)})\Leftrightarrow \texttt{AESE}(\text{ShiftRow}^{-1}(x))=\text{SubBytes}(x)
+\]
+
+We can then reverse the affine transformation $A$ due to bijectivity and
+extract the multiplicative inverse of all 16 vector bytes in GF$(2^8)$.
+
+\[
+    x^{-1}_{\text{GF}(2^8)}=A^{-1}(A(x^{-1}_{\text{GF}(2^8)}))=A^{-1}(\text{SubBytes}(x))=A^{-1}(\texttt{AESE}(\text{ShiftRow}^{-1}(x)))
+\]
+
+Using the affine isomorphism, we transform this inverse into the inverse in
+GF$((2^4)^2)$ which is equal to $g(x)$:
+
+\[
+    g(x)=x^{-1}_{\text{GF}((2^4)^2)}=\delta(x^{-1}_{\text{GF}(2^8)})=\delta(A^{-1}(\texttt{AESE}(\text{ShiftRow}^{-1}(x))))
+\]
+
+We now redefine $h,f$ as $H,F$ such that they include addition of constants
+$0xc5$ and $0x6e$. We can now use the inverse in conjunction with $H$ and $F$
+and an additional input transformation to calculate the Camellia S-box:
+
+\begin{align*}
+    s_0(x)&=h(g(f(x\oplus 0xc5)))\oplus 0x6e \\
+          &=H(g(F(x))) \\
+          &=H(\delta(A^{-1}(\texttt{AESE}(\text{ShiftRow}^{-1}(\delta^{-1}(F(x)))))))
+\end{align*}
+
+Because of different bit endianness of the matrices representing
+$\delta,\delta^{-1}$, we define an additional bit-swapping function:
+
+\[
+    S=S^{-1}:\begin{pmatrix}x_0\\x_1\\x_2\\x_3\\x_4\\x_5\\x_6\\x_7\end{pmatrix}\mapsto
+    \begin{pmatrix}
+        0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
+        0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\
+        0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\
+        0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+        0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\
+        0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
+        0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+        1 & 0 & 0 & 0 & 0 & 0 & 0 & 0
+    \end{pmatrix}
+    \begin{pmatrix}x_0\\x_1\\x_2\\x_3\\x_4\\x_5\\x_6\\x_7\end{pmatrix}
+\]
+
+The final equation serving as the basis for our implementation then becomes
+
+\[
+    s_0(x)=S^{-1}(H(\delta(S(A^{-1}(\texttt{AESE}(\text{ShiftRow}^{-1}(S^{-1}(\delta^{-1}(F(S(x))))))))))
+\]
+
+While appearing to be computationally too intensive for any performance gains,
+we shall notice that all of the transformations are affine and can therefore be
+combined into a single operation by simple matrix multiplication. We combine
+them into a pre-filter function $\theta_0$ and a post-filter function $\psi_0$:
+
+\begin{align*}
+    \theta_0(x)&=S^{-1}(\delta^{-1}(F(S(x)))) \\
+    \psi_0(x)&=S^{-1}(H(\delta(S(A^{-1}(x)))))
+\end{align*}
+
+This simplifies our final equation:
+
+\[
+    s_0(x)=\psi_0(\texttt{AESE}(\text{ShiftRow}^{-1}(\theta_0(x))))
+\]
+
+The other S-boxes $s_1,s_2,s_3$ are defined in terms of $s_0$ and rotations. We
+can include these rotations by constructing additional S-box-specific filters
+$\theta_3,\psi_1,\psi_2$:
+
+\begin{alignat*}{2}
+    s_1(x)&=s_0(x)\lll_1&&=\psi_1(\texttt{AESE}(\text{ShiftRow}^{-1}(\theta_0(x)))) \\
+    s_2(x)&=s_0(x)\ggg_1&&=\psi_2(\texttt{AESE}(\text{ShiftRow}^{-1}(\theta_0(x)))) \\
+    s_3(x)&=s_0(x\lll_1)&&=\psi_0(\texttt{AESE}(\text{ShiftRow}^{-1}(\theta_3(x))))
+\end{alignat*}
+
+\subsubsection{Fast matrix multiplication}
+
+Efficient application of the filter functions is essential to performance and
+can be implemented in parallel by use of the \texttt{TBL} instruction. First
+note that matrix-vector multiplication $\F{8\times 8}\cdot\F{8}\rightarrow
+\F{8}$ can be decomposed into two multiplications $\F{8\times
+4}\cdot\F{4}\rightarrow \F{8}$ with subsequent addition of the results:
+
+\[
+    \begin{pmatrix}
+        1 & 1 & 1 & 0 & 1 & 1 & 0 & 1 \\
+        0 & 0 & 1 & 1 & 0 & 0 & 1 & 0 \\
+        1 & 1 & 0 & 1 & 0 & 0 & 0 & 0 \\
+        1 & 0 & 1 & 1 & 0 & 0 & 1 & 1 \\
+        0 & 0 & 0 & 0 & 1 & 1 & 0 & 0 \\
+        1 & 0 & 1 & 0 & 0 & 1 & 0 & 0 \\
+        0 & 0 & 1 & 0 & 1 & 1 & 0 & 0 \\
+        1 & 0 & 0 & 0 & 0 & 1 & 1 & 0 \\
+    \end{pmatrix}\cdot
+    \begin{pmatrix}x_0\\x_1\\x_2\\x_3\\x_4\\x_5\\x_6\\x_7\end{pmatrix}=
+    \begin{pmatrix}
+        1 & 1 & 0 & 1 \\
+        0 & 0 & 1 & 0 \\
+        0 & 0 & 0 & 0 \\
+        0 & 0 & 1 & 1 \\
+        1 & 1 & 0 & 0 \\
+        0 & 1 & 0 & 0 \\
+        1 & 1 & 0 & 0 \\
+        0 & 1 & 1 & 0 \\
+    \end{pmatrix}\cdot
+    \begin{pmatrix}x_0\\x_1\\x_2\\x_3\end{pmatrix}\oplus
+    \begin{pmatrix}
+        1 & 1 & 1 & 0 \\
+        0 & 0 & 1 & 1 \\
+        1 & 1 & 0 & 1 \\
+        1 & 0 & 1 & 1 \\
+        0 & 0 & 0 & 0 \\
+        1 & 0 & 1 & 0 \\
+        0 & 0 & 1 & 0 \\
+        1 & 0 & 0 & 0 \\
+    \end{pmatrix}\cdot
+    \begin{pmatrix}x_4\\x_5\\x_6\\x_7\end{pmatrix}
+\]
+
+We can then tabulate the decomposed multiplications since each input now
+consists of only four bits which allows us to fit the 16 possible 8-bit results
+into a single vector register. A single matrix multiplication is then executed
+for 16 bytes in parallel by use of two \texttt{TBL} and one XOR instruction with
+an additional AND and SHR operation for masking off the lower/upper 4 bits.
