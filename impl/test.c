@@ -1,3 +1,5 @@
+#pragma clang optimize off
+
 #include "naive/gift.h"
 #include "naive/gift_sliced.h"
 #include "table/gift_table.h"
@@ -15,7 +17,7 @@
 #include <string.h>
 
 // no testing framework necessary for this small project
-#define ASSERT_EQUALS(x,y)\
+#define ASSERT_EQUALS(x, y)\
         if (x != y) {\
                 fprintf(stderr, "ASSERT_EQUALS failed on line %d: %lx != %lx\n", __LINE__, x, y);\
                 exit(-1);\
@@ -301,7 +303,7 @@ void test_camellia_naive(void)
                 0x6767313854966973, 0x0857065648eabe43
         };
 
-        camellia_naive_generate_round_keys_128(key, &rks_128);
+        camellia_naive_generate_round_keys_128(&rks_128, key);
         camellia_naive_encrypt_128(c, m, &rks_128);
         ASSERT_EQUALS(c[0], c_expected[0]);
         ASSERT_EQUALS(c[1], c_expected[1]);
@@ -310,7 +312,7 @@ void test_camellia_naive(void)
         for (int i = 0; i < 100; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
                 key_rand(key);
-                camellia_naive_generate_round_keys_128(key, &rks_128);
+                camellia_naive_generate_round_keys_128(&rks_128, key);
 
                 uint64_t m_decr[2];
                 camellia_naive_encrypt_128(c, m, &rks_128);
@@ -330,7 +332,7 @@ void test_camellia_naive(void)
         c_expected[0] = 0x9acc237dff16d76cUL;
         c_expected[1] = 0x20ef7c919e3a7509UL;
 
-        camellia_naive_generate_round_keys_256(key_256, &rks_256);
+        camellia_naive_generate_round_keys_256(&rks_256, key_256);
         camellia_naive_encrypt_256(c, m, &rks_256);
         ASSERT_EQUALS(c[0], c_expected[0]);
         ASSERT_EQUALS(c[1], c_expected[1]);
@@ -339,7 +341,7 @@ void test_camellia_naive(void)
         for (int i = 0; i < 100; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
                 m_rand((uint8_t*)key_256, sizeof(key_256));
-                camellia_naive_generate_round_keys_256(key, &rks_256);
+                camellia_naive_generate_round_keys_256(&rks_256, key);
 
                 uint64_t m_decr[2];
                 camellia_naive_encrypt_256(c, m, &rks_256);
@@ -379,7 +381,7 @@ void test_camellia_spec_opt(void)
                 0x6767313854966973, 0x0857065648eabe43
         };
 
-        camellia_spec_opt_generate_round_keys_128(key, &rks_128);
+        camellia_spec_opt_generate_round_keys_128(&rks_128, key);
         camellia_spec_opt_encrypt_128(c, m, &rks_128);
         ASSERT_EQUALS(c[0], c_expected[0]);
         ASSERT_EQUALS(c[1], c_expected[1]);
@@ -388,7 +390,7 @@ void test_camellia_spec_opt(void)
         for (int i = 0; i < 100; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
                 key_rand(key);
-                camellia_spec_opt_generate_round_keys_128(key, &rks_128);
+                camellia_spec_opt_generate_round_keys_128(&rks_128, key);
 
                 uint64_t m_decr[2];
                 camellia_spec_opt_encrypt_128(c, m, &rks_128);
@@ -400,43 +402,32 @@ void test_camellia_spec_opt(void)
 
 void test_camellia_sliced(void)
 {
+        printf("testing CAMELLIA_SLICED 128-bit encrypt to known value...\n");
+
         camellia_sliced_init();
 
-        uint64_t test[16][2];
-        /* for (size_t i = 0; i < 16; i++) { */
-        /*         test[i][0] = 0x8796a5b4c3d2e1f0UL; */
-        /*         test[i][1] = 0x0f1e2d3c4b5a6978UL; */
-        /* } */
+        uint64_t key[2] = {
+                0x0123456789abcdefUL, 0xfedcba9876543210UL
+        };
+
+        uint64_t m[16][2];
+        uint64_t c[16][2];
+        for (size_t i = 0; i < 16; i++) {
+                m[i][0] = 0x0123456789abcdefUL;
+                m[i][1] = 0xfedcba9876543210UL;
+        }
+
+        uint64_t c_expected[2] = {
+                0x6767313854966973, 0x0857065648eabe43
+        };
+
+        struct camellia_rks_sliced_128 rks;
+        camellia_sliced_generate_round_keys_128(&rks, key);
+        camellia_sliced_encrypt_128(c, m, &rks);
 
         for (size_t i = 0; i < 16; i++) {
-                test[i][0] = 0x0706050403020100UL;
-                test[i][1] = 0x0f0e0d0c0b0a0908UL;
+                ASSERT_TRUE(memcmp(c_expected, &c[i], sizeof(c_expected)) == 0);
         }
-
-        uint8x16x4_t packed[4];
-        camellia_sliced_pack(packed, test);
-        for (size_t i = 0; i < 4; i++) {
-                for (size_t j = 0; j < 4; j++) {
-                        printf("%lx %lx\n", vgetq_lane_u64(packed[i].val[j], 1),
-                              vgetq_lane_u64(packed[i].val[j], 0));
-                }
-        }
-
-        uint8x16_t a = vld1q_u8((uint8_t*)&test[0]);
-        uint8x16x4_t data[2];
-        uint8x16x4_t key[2];
-        for (size_t i = 0; i < 2; i++) {
-                for (size_t j = 0; j < 4; j++) {
-                        data[i].val[j] = a;
-                        key[i].val[j] = vdupq_n_u8(0x0);
-                }
-        }
-
-
-        /* camellia_sliced_F(data, key); */
-        /* printf("%lx %lx\n", */
-        /*        vgetq_lane_u64(data[0].val[0], 1), */
-        /*        vgetq_lane_u64(data[0].val[0], 0)); */
 }
 
 int main(int argc, char *argv[])
@@ -452,3 +443,5 @@ int main(int argc, char *argv[])
         test_camellia_spec_opt();
         test_camellia_sliced();
 }
+
+#pragma clang optimize on

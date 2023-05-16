@@ -47,51 +47,56 @@ static const int round_const[] = {
         0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A, 0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
 };
 
-uint8x16_t shl(const uint8x16_t v, const int n)
-{
-        uint64_t l[2];
-        vst1q_u64(l, v);
-        l[1] = (l[1] << n) | (l[0] >> (64 - n));
-        l[0] <<= n;
-        return vld1q_u64(l);
+/*
+uint8x16_t shl(const uint8x16_t v, const int n) */
+#define shl(_a, v, n)                                                       \
+{                                                                           \
+        uint64x2_t _overflow = vshrq_n_u64(v, 64 - n);                        \
+        _overflow = vextq_u64(vdupq_n_u64(0x0), _overflow, 1);                \
+        _a = vorrq_u8(v, _overflow);                                         \
 }
 
-uint8x16_t shr(const uint8x16_t v, const int n)
-{
-        uint64_t l[2];
-        vst1q_u64(l, v);
-        l[0] = l[0] >> n | (l[1] << (64 - n));
-        l[1] >>= n;
-        return vld1q_u64(l);
+/*
+uint8x16_t shr(const uint8x16_t v, const int n) */
+#define shr(_a, v, n)                                                       \
+{                                                                           \
+        uint64x2_t _overflow = vshrq_n_u64(vshlq_n_u64(v, 64 - n), 64 - n);    \
+        _overflow = vextq_u64(_overflow, vdupq_n_u64(0x0), 1);                \
+        _a = vorrq_u8(v, _overflow);                                         \
 }
 
+/* implemented as a macro so we can use vshlq_n_u8 with variable n
 void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b,
-                                 const uint8x16_t m, const int n)
-{
-
-        const uint8x16_t t = vandq_u8(veorq_u8(shr(*a, n), *b), m);
-        *b = veorq_u8(*b, t);
-        *a = veorq_u8(*a, shl(t, n));
+                                 const uint8x16_t m, const int n) */
+#define gift_64_vec_sliced_swapmove(a, b, m, n)                             \
+{                                                                           \
+        uint8x16_t _a;                                                \
+        shr(_a, a, n);                                                      \
+        const uint8x16_t _t = vandq_u8(veorq_u8(_a, b), m);                 \
+        b = veorq_u8(b, _t);                                                \
+        uint8x16_t _b;                                                \
+        shl(_b, _t, n);                                                      \
+        a = veorq_u8(a, _b);                                               \
 }
 
 void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2])
 {
         // take care not to shift mask bits out of the register
-        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[1], pack_mask_0, 1);
-        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[0].val[3], pack_mask_0, 1);
-        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[1], pack_mask_0, 1);
-        gift_64_vec_sliced_swapmove(&m[1].val[2], &m[1].val[3], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[0].val[0], m[0].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[0].val[2], m[0].val[3], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[1].val[0], m[1].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[1].val[2], m[1].val[3], pack_mask_0, 1);
 
-        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[2], pack_mask_1, 2);
-        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[0].val[3], pack_mask_1, 2);
-        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[2], pack_mask_1, 2);
-        gift_64_vec_sliced_swapmove(&m[1].val[1], &m[1].val[3], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[0].val[0], m[0].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[0].val[1], m[0].val[3], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[1].val[0], m[1].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[1].val[1], m[1].val[3], pack_mask_1, 2);
 
         // make bytes (a0 b0 c0 d0 a4 b4 c4 d4 -> a0 b0 c0 d0 e0 f0 g0 h0)
-        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[1].val[0], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[1].val[2], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[1].val[1], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m[0].val[3], &m[1].val[3], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[0], m[1].val[0], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[2], m[1].val[2], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[1], m[1].val[1], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[3], m[1].val[3], pack_mask_2, 4);
 
         // same plaintext slice bits into same register (so we only have to do
         // what we are doing here once instead of every round)
@@ -133,21 +138,21 @@ void gift_64_vec_sliced_bits_unpack(uint8x16x4_t m[restrict 2])
         m[1].val[3] = vqtbl2q_u8(pairs[3], pack_shf_inv.val[1]);
 
         // take care not to shift mask bits out of the register
-        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[1], pack_mask_0, 1);
-        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[0].val[3], pack_mask_0, 1);
-        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[1], pack_mask_0, 1);
-        gift_64_vec_sliced_swapmove(&m[1].val[2], &m[1].val[3], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[0].val[0], m[0].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[0].val[2], m[0].val[3], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[1].val[0], m[1].val[1], pack_mask_0, 1);
+        gift_64_vec_sliced_swapmove(m[1].val[2], m[1].val[3], pack_mask_0, 1);
 
-        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[0].val[2], pack_mask_1, 2);
-        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[0].val[3], pack_mask_1, 2);
-        gift_64_vec_sliced_swapmove(&m[1].val[0], &m[1].val[2], pack_mask_1, 2);
-        gift_64_vec_sliced_swapmove(&m[1].val[1], &m[1].val[3], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[0].val[0], m[0].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[0].val[1], m[0].val[3], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[1].val[0], m[1].val[2], pack_mask_1, 2);
+        gift_64_vec_sliced_swapmove(m[1].val[1], m[1].val[3], pack_mask_1, 2);
 
         // make bytes (a0 b0 c0 d0 a4 b4 c4 d4 -> a0 b0 c0 d0 e0 f0 g0 h0)
-        gift_64_vec_sliced_swapmove(&m[0].val[0], &m[1].val[0], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m[0].val[2], &m[1].val[2], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m[0].val[1], &m[1].val[1], pack_mask_2, 4);
-        gift_64_vec_sliced_swapmove(&m[0].val[3], &m[1].val[3], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[0], m[1].val[0], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[2], m[1].val[2], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[1], m[1].val[1], pack_mask_2, 4);
+        gift_64_vec_sliced_swapmove(m[0].val[3], m[1].val[3], pack_mask_2, 4);
 }
 
 void gift_64_vec_sliced_subcells(uint8x16x4_t cs[restrict 2])

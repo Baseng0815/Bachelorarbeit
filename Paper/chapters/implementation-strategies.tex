@@ -239,16 +239,15 @@ One caveat of this approach is the fact that NEON registers cannot be shifted
 in their entirety due to the fact bits are not able to cross lanes. This leads
 to the problem of being able to shift at most two lanes of 64 bits at once. We
 thus need to implement the \texttt{shr(V,n)} and \texttt{shl(V,n)} operations
-on our own. This can be done by first extracting the 64-bit lanes $a,b$ out of
-$V=b||a$, shifting the lanes individually and finally shifting and ORing the
-crossing bits back into the other lane.
+on our own. This can be done by extracting and shifting the overflow $ov$ out
+of $V=b||a$, shifting the lanes individually and finally ORing the overflow
+bits to the corresponding vector element.
 
 \begin{alignat*}{2}
     &\text{shl}(V,n): \\
-    &\qquad a,b&&=V[0],V[1] \\
-    &\qquad c&&=(a\gg (64-n)) \\
-    &\qquad V[0]&&=(a\ll n) \\
-    &\qquad V[1]&&=(b\ll n)\lor c
+    &\qquad ov&&=V[0]\land(\lnot(\texttt{0xffffffffffffffff}\gg_n))\gg_{63-n} \\
+    &\qquad V[0]&&=V[0]\gg_n \\
+    &\qquad V[1]&&=(V[1]\gg_n)\lor ov
 \end{alignat*}
 
 The following operations group all $i$-th bits of the messages $a,c,\dots,o$
@@ -262,7 +261,7 @@ are put into the upper half of the registers.
     &\text{SWAPMOVE}(V_0,V_2,0x3333\dots 33,2) &\text{SWAPMOVE}(V_4,V_6,0x3333\dots 33,2) \\
     &\text{SWAPMOVE}(V_1,V_3,0x3333\dots 33,2) &\text{SWAPMOVE}(V_5,V_7,0x3333\dots 33,2) \\
     &\text{SWAPMOVE}(V_0,V_4,0x0f0f\dots 0f,4) &\text{SWAPMOVE}(V_1,V_5,0x0f0f\dots 0f,4) \\
-    &\text{SWAPMOVE}(V_2,V_6,0x0f0f\dots 0f,4) &\text{SWAPMOVE}(V_3,V_7,0x0f0f\dots 0f,4) \\
+    &\text{SWAPMOVE}(V_2,V_6,0x0f0f\dots 0f,4) &\text{SWAPMOVE}(V_3,V_7,0x0f0f\dots 0f,4)
 \end{align*}
 
 With $Ax=o_xm_xk_xj_xg_xe_xc_xa_x$ and $Bx=p_xn_xl_xi_xh_xf_xd_xb_x$ denoting
@@ -409,15 +408,29 @@ generally offer better performance.
 
 \subsection{Byteslicing}
 
+Because Camellia is a byte-oriented block cipher, we can pursue a similar
+strategy as for GIFT: find a convenient data packing format and a way to apply
+necessary operations in parallel.
 
-\subsubsection{Packing}
+We choose to encrypt 16 plaintext blocks at once so we can fill 16 vector
+registers with register $V_i$ containing all $i$-th bytes. This lends itself well
+to a NEON implementation since S-boxes as well as the FL layer, Feistel round
+and packing/unpacking functions can be implemented efficiently.
 
-We encrypt 16 plaintext blocks in parallel so we can fill 16 vector registers
-with register $i$ containing all $i$-th bytes. This lends itself well to a NEON
-implementation since S-boxes as well as the FL layer, Feistel round and
-packing/unpacking functions can be implemented efficiently.
+\subsubsection{Packing and unpacking}
 
+Packing and unpacking of data can be done efficiently by use of 32 \texttt{TBL}
+instructions and is summarized in Figure \ref{fig:byteslicing}. After
+packing, every $i$-th register will contain all $i$-th bytes of the 16 input
+blocks. Unpacking is done in a similar way with different permutation tables.
 
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/byteslicing.pdf}
+    \caption{Camellia byte-sliced packing function with 32 \texttt{TBL} operations.
+    Curly bracets represent a 4-element vector array being used as source registers.}
+    \label{fig:byteslicing}
+\end{figure}
 
 \subsubsection{Hardware-accelerated Camellia S-box}
 
@@ -444,7 +457,7 @@ The Camellia S-box $s_0$ is defined as follows:
 
 with affine transformations $h,f$ and the multiplicative inversion function $g$
 in the composite field GF$((2^4)^2)$. Because Galois fields of equal size are
-isomorphic, there are affine isomorphisms $\delta,\delta^{-1}$ between
+isomorphic, there exist affine isomorphisms $\delta,\delta^{-1}$ between
 GF($2^8$) and GF($(2^4)^2$) respectively\cite{satohmorioka:2003}:
 
 \begin{alignat*}{2}
@@ -583,3 +596,29 @@ consists of only four bits which allows us to fit the 16 possible 8-bit results
 into a single vector register. A single matrix multiplication is then executed
 for 16 bytes in parallel by use of two \texttt{TBL} and one XOR instruction with
 an additional AND and SHR operation for masking off the lower/upper 4 bits.
+
+\subsubsection{Permutation}
+
+Since all bytes of the same position are collected in the same register,
+applying the permutation can be realized in 16 XOR operations as described in
+the Camellia specification with the difference that we choose to not swap the
+lower and higher 4 bytes, but rather compensate for this by choosing the
+correct bytes when XORing with the other half later in the Feistel round.
+
+% TODO add graphic here
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/camelliaround.pdf}
+    \caption{Camellia byte-sliced Feistel round function}
+\end{figure}
+
+\subsubsection{FL layer}
+
+The two functions $FL,FL^{-1}$ can be implemented in a straightforward manner
+once 1-bit left rotation has been defined for the bytesliced representation.
+This can be facilitated by extracting the highest bit of each byte, shifting it
+all the way to the right and storing it as overflow $o_i$. $o_i$ is then added
+to the left-shifted value of byte $(i + 4) (\bmod 4)$ for the final result.
+
+% TODO add graphic here

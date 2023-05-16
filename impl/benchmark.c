@@ -7,6 +7,7 @@
 #include "vector/gift_vec_sliced.h"
 #include "camellia/naive.h"
 #include "camellia/spec_opt.h"
+#include "camellia/bytesliced.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,10 +67,10 @@ static void benchmark_gift_64(void)
         }
 
         printf("%f %f %f %f\n",
-               cycles[0] / (float)NL / 8.0f,
-               cycles[1] / (float)NL / 8.0f,
-               cycles[2] / (float)NL / 8.0f,
-               cycles[3] / (float)NL / 8.0f);
+               cycles[0] / ((float)NL * 8.0f),
+               cycles[1] / ((float)NL * 8.0f),
+               cycles[2] / ((float)NL * 8.0f),
+               cycles[3] / ((float)NL * 8.0f));
 
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -99,10 +100,10 @@ static void benchmark_gift_128(void)
         }
 
         printf("%f %f %f %f\n",
-               cycles[0] / (float)NL / 16.0f,
-               cycles[1] / (float)NL / 16.0f,
-               cycles[2] / (float)NL / 16.0f,
-               cycles[3] / (float)NL / 16.0f);
+               cycles[0] / ((float)NL * 16.0f),
+               cycles[1] / ((float)NL * 16.0f),
+               cycles[2] / ((float)NL * 16.0f),
+               cycles[3] / ((float)NL * 16.0f));
 
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -131,9 +132,9 @@ static void benchmark_gift_64_table(void)
         }
 
         printf("%f %f %f\n",
-               cycles[0] / (float)NL / 8.0f,
-               cycles[1] / (float)NL / 8.0f,
-               cycles[2] / (float)NL / 8.0f);
+               cycles[0] / ((float)NL * 8.0f),
+               cycles[1] / ((float)NL * 8.0f),
+               cycles[2] / ((float)NL * 8.0f));
 
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -167,12 +168,12 @@ static void benchmark_gift_64_vec_sbox(void)
         }
 
         printf("%f %f %f %f %f %f\n",
-               cycles[0] / (float)NL / 8.0f,
-               cycles[1] / (float)NL / 8.0f,
-               cycles[2] / (float)NL / 8.0f,
-               cycles[3] / (float)NL / 8.0f,
-               cycles[4] / (float)NL / 8.0f,
-               cycles[5] / (float)NL / 8.0f);
+               cycles[0] / ((float)NL * 8.0f),
+               cycles[1] / ((float)NL * 8.0f),
+               cycles[2] / ((float)NL * 8.0f),
+               cycles[3] / ((float)NL * 8.0f),
+               cycles[4] / ((float)NL * 8.0f),
+               cycles[5] / ((float)NL * 8.0f));
 
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -206,12 +207,12 @@ static void benchmark_gift_64_vec_sliced(void)
         }
 
         printf("%f %f %f %f %f %f\n",
-               cycles[0] / (float)NL / 128.0f,
-               cycles[1] / (float)NL / 128.0f,
-               cycles[2] / (float)NL / 128.0f,
-               cycles[3] / (float)NL / 128.0f,
-               cycles[4] / (float)NL / 128.0f,
-               cycles[5] / (float)NL / 128.0f);
+               cycles[0] / ((float)NL * 128.0f),
+               cycles[1] / ((float)NL * 128.0f),
+               cycles[2] / ((float)NL * 128.0f),
+               cycles[3] / ((float)NL * 128.0f),
+               cycles[4] / ((float)NL * 128.0f),
+               cycles[5] / ((float)NL * 128.0f));
 
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -234,25 +235,26 @@ static void benchmark_camellia_naive(void)
 
         uint64_t cycles[8] = { 0UL };
         for (int i = 0; i < NL; i++) {
-                cycles[0] += TIME(camellia_naive_generate_round_keys_128(key, &rks));
-                cycles[1] += TIME(camellia_naive_S(m[0]));
-                cycles[2] += TIME(camellia_naive_P(m[1]));
-                cycles[3] += TIME(camellia_naive_F(m[0], key[0]));
-                cycles[4] += TIME(camellia_naive_FL(m[0], key[0]));
-                cycles[5] += TIME(camellia_naive_FL_inv(m[1], key[1]));
-                cycles[6] += TIME(camellia_naive_feistel_round(m, key[1]));
-                cycles[7] += TIME(camellia_naive_encrypt_128(c, m, &rks));
+                cycles[0] += TIME(camellia_naive_generate_round_keys_128(&rks, key));
+                // TODO deliberate over whether the cycle count of functions
+                // taking 8 bytes as input should still be divided by 16
+                cycles[1] += TIME(camellia_naive_feistel_round(m, key[1]));
+                cycles[2] += TIME(camellia_naive_S(m[0]));
+                cycles[3] += TIME(camellia_naive_P(m[1]));
+                cycles[4] += TIME(camellia_naive_F(m[0], key[0]));
+                cycles[5] += TIME(camellia_naive_FL(m[0], key[0]));
+                cycles[6] += TIME(camellia_naive_encrypt_128(c, m, &rks));
         }
 
         printf("%f %f %f %f %f %f %f %f\n",
-               cycles[0] / (float)NL / 16.0f,
-               cycles[1] / (float)NL / 16.0f,
-               cycles[2] / (float)NL / 16.0f,
-               cycles[3] / (float)NL / 16.0f,
-               cycles[4] / (float)NL / 16.0f,
-               cycles[5] / (float)NL / 16.0f,
-               cycles[6] / (float)NL / 16.0f,
-               cycles[7] / (float)NL / 16.0f);
+               cycles[0] / ((float)NL * 16.0f),
+               cycles[1] / ((float)NL * 16.0f),
+               cycles[2] / ((float)NL * 16.0f),
+               cycles[3] / ((float)NL * 16.0f),
+               cycles[4] / ((float)NL * 16.0f),
+               cycles[5] / ((float)NL * 16.0f),
+               cycles[6] / ((float)NL * 16.0f),
+               cycles[7] / ((float)NL * 16.0f));
 
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -264,19 +266,19 @@ static void benchmark_camellia_naive(void)
         double megs = NT * sizeof(m) / (1024 * 1024);
         printf("throughput: %f MiB/s\n", megs / seconds);
 
-        printf("Benchmaring CAMELLIA_NAIVE 256-bit...\n");
+        printf("Benchmarking CAMELLIA_NAIVE 256-bit...\n");
         uint64_t key_256[4];
         struct camellia_rks_256 rks_256;
 
         memset(cycles, 0, sizeof(cycles));
         for (int i = 0; i < NL; i++) {
-                cycles[0] += TIME(camellia_naive_generate_round_keys_256(key_256, &rks_256));
+                cycles[0] += TIME(camellia_naive_generate_round_keys_256(&rks_256, key_256));
                 cycles[1] += TIME(camellia_naive_encrypt_256(c, m, &rks_256));
         }
 
         printf("%f %f\n",
-               cycles[0] / (float)NL / 16.0f,
-               cycles[1] / (float)NL / 16.0f);
+               cycles[0] / ((float)NL * 16.0f),
+               cycles[1] / ((float)NL * 16.0f));
 
         gettimeofday(&st, NULL);
         for (int i = 0; i < NT; i++) {
@@ -290,29 +292,27 @@ static void benchmark_camellia_naive(void)
 
 static void benchmark_camellia_spec_opt(void)
 {
-        printf("Benchmaring CAMELLIA_SPEC_OPT 128-bit...\n");
+        printf("Benchmarking CAMELLIA_SPEC_OPT 128-bit...\n");
 
         uint64_t key[2];
         uint64_t m[2], c[2];
         struct camellia_rks_128 rks;
 
-        uint64_t cycles[6] = { 0UL };
+        uint64_t cycles[5] = { 0UL };
         for (int i = 0; i < NL; i++) {
-                cycles[0] += TIME(camellia_spec_opt_generate_round_keys_128(key, &rks));
-                cycles[1] += TIME(camellia_spec_opt_F(m[0], key[0]));
-                cycles[2] += TIME(camellia_spec_opt_FL(m[0], key[0]));
-                cycles[3] += TIME(camellia_spec_opt_FL_inv(m[1], key[1]));
-                cycles[4] += TIME(camellia_spec_opt_feistel_round(m, key[0]));
-                cycles[5] += TIME(camellia_spec_opt_encrypt_128(c, m, &rks));
+                cycles[0] += TIME(camellia_spec_opt_generate_round_keys_128(&rks, key));
+                cycles[1] += TIME(camellia_spec_opt_feistel_round(m, key[0]));
+                cycles[2] += TIME(camellia_spec_opt_F(m[0], key[0]));
+                cycles[3] += TIME(camellia_spec_opt_FL(m[0], key[0]));
+                cycles[4] += TIME(camellia_spec_opt_encrypt_128(c, m, &rks));
         }
 
-        printf("%f %f %f %f %f %f\n",
-               cycles[0] / (float)NL / 16.0f,
-               cycles[1] / (float)NL / 16.0f,
-               cycles[2] / (float)NL / 16.0f,
-               cycles[3] / (float)NL / 16.0f,
-               cycles[4] / (float)NL / 16.0f,
-               cycles[5] / (float)NL / 16.0f);
+        printf("%f %f %f %f %f\n",
+               cycles[0] / ((float)NL * 16.0f),
+               cycles[1] / ((float)NL * 16.0f),
+               cycles[2] / ((float)NL * 16.0f),
+               cycles[3] / ((float)NL * 16.0f),
+               cycles[4] / ((float)NL * 16.0f));
 
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -321,7 +321,50 @@ static void benchmark_camellia_spec_opt(void)
         }
         gettimeofday(&et, NULL);
         double seconds = elapsed_seconds(&st, &et);
-        double megs = NT * sizeof(m) / (1024 * 1024);
+        double megs = NT * sizeof(m) / (float)(1024 * 1024);
+        printf("throughput: %f MiB/s\n", megs / seconds);
+}
+
+static void benchmark_camellia_sliced(void)
+{
+        camellia_sliced_init();
+
+        printf("Benchmaring CAMELLIA_SLICED 128-bit...\n");
+
+        uint64_t key[2];
+        uint64_t m[16][2], c[16][2];
+        struct camellia_rks_sliced_128 rks;
+
+        uint8x16x4_t s[4];
+
+        uint64_t cycles[7] = { 0UL };
+        for (int i = 0; i < NL; i++) {
+                cycles[0] += TIME(camellia_sliced_generate_round_keys_128(&rks, key));
+                cycles[1] += TIME(camellia_sliced_feistel_round(s, rks.kl[0]));
+                cycles[2] += TIME(camellia_sliced_F(s, rks.kl[2]));
+                cycles[3] += TIME(camellia_sliced_FL(s, rks.ku[9]));
+                cycles[4] += TIME(camellia_sliced_pack(s, m));
+                cycles[5] += TIME(camellia_sliced_unpack(c, s));
+                cycles[6] += TIME(camellia_sliced_encrypt_128(c, m, &rks));
+        }
+
+        printf("%f %f %f %f %f %f %f\n",
+               cycles[0] / ((float)NL * 16.f * 16.f),
+               cycles[1] / ((float)NL * 16.f * 16.f),
+               cycles[2] / ((float)NL * 16.f * 16.f),
+               cycles[3] / ((float)NL * 16.f * 16.f),
+               cycles[4] / ((float)NL * 16.f * 16.f),
+               cycles[5] / ((float)NL * 16.f * 16.f),
+               cycles[6] / ((float)NL * 16.f * 16.f));
+
+        struct timeval st, et;
+        gettimeofday(&st, NULL);
+        for (int i = 0; i < NT; i++) {
+                camellia_sliced_encrypt_128(c, m, &rks);
+        }
+        gettimeofday(&et, NULL);
+        double seconds = elapsed_seconds(&st, &et);
+        double megs = NT * sizeof(m) / (float)(1024 * 1024);
         printf("throughput: %f MiB/s\n", megs / seconds);
 }
 
@@ -335,6 +378,7 @@ int main(int argc, char *argv[])
         /* benchmark_gift_64_vec_sliced(); */
         benchmark_camellia_naive();
         benchmark_camellia_spec_opt();
+        benchmark_camellia_sliced();
 }
 
 #pragma clang optimize on

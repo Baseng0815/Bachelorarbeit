@@ -5,7 +5,7 @@ FLAGS 	= --target=$(TARGET) --sysroot=$(SYSROOT) -fuse-ld=lld -z notext -lz \
 	  --verbose -march=armv8-a+crypto
 UFLAGS	= -O3 -Wall -gdwarf-4
 SESNAME	= thesis
-HOST 	= odroid
+HOST 	= engelnet.ddns.net
 
 SOURCE_FILES 	= naive/gift.c naive/gift_sliced.c table/gift_table.c \
 		  vector/gift_vec_sbox.c vector/gift_vec_sliced.c \

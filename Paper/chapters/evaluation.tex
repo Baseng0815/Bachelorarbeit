@@ -28,8 +28,8 @@ command utility.
 
 \begin{table}[h!]
     \centering
-    \small
     \caption{Benchmarks for GIFT}
+    \footnotesize
     \begin{tabular}{llcccc}
         \toprule
         & & \multicolumn{2}{c}{Cortex-A53} & \multicolumn{2}{c}{Cortex-A73} \\
@@ -76,8 +76,8 @@ command utility.
 
 \begin{table}[h!]
     \centering
-    \small
     \caption{Benchmarks for Camellia}
+    \scriptsize
     \begin{tabular}{llcccc}
         \toprule
         & & \multicolumn{2}{c}{Cortex-A53} & \multicolumn{2}{c}{Cortex-A73} \\
@@ -87,15 +87,30 @@ command utility.
         \multirow{2}{*}{Naive Camellia-128} & \texttt{round\_keys} & 15.26 & \multirow{2}{*}{33.74} & 11.08 & \multirow{2}{*}{46.71} \\
                                                 & \texttt{encrypt} & 53.44 & &  43.51 & \\
         \cmidrule(lr){2-2}
-                                                & \texttt{ S} & 2.01 & & 0.94 & \\
-                                                & \texttt{ P} & 2.03 & & 1.63 & \\
-                                                & \texttt{ F} & 3.13 & & 2.25 & \\
-                                                & \texttt{ FL} & 1.06 & & 0.72 & \\
-                                                & \texttt{ FL\_inv} & 0.94 & & 0.81 & \\
                                                 & \texttt{ feistel\_round} & 4.02 & & 2.66 & \\
+                                                & \texttt{ S} & 2.01 & & 0.94 & \\
+                                                & \texttt{ F} & 3.13 & & 2.25 & \\
+                                                & \texttt{ P} & 2.03 & & 1.63 & \\
+                                                & \texttt{ FL} & 1.06 & & 0.72 & \\
         \midrule
         \multirow{2}{*}{Naive Camellia-256} & \texttt{round\_keys} & 22.01 & \multirow{2}{*}{25.50} & 16.99 & \multirow{2}{*}{35.16} \\
                                                  & \texttt{encrypt} & 70.55 & & 58.27 & \\
+        \midrule
+        \multirow{2}{*}{Optimized Camellia-128} & \texttt{round\_keys} & 8.18 & \multirow{2}{*}{77.07} & 5.93 & \multirow{2}{*}{107.31} \\
+                                                & \texttt{encrypt} & 23.63 & & 19.83 & \\
+        \cmidrule(lr){2-2}
+                                                & \texttt{ feistel\_round} & 2.32 & & 1.56 & \\
+                                                & \texttt{ F} & 2.21 & & 1.43 & \\
+                                                & \texttt{ FL} & 1.06 & & 0.69 & \\
+        \midrule
+        \multirow{2}{*}{Byte-sliced Camellia-128} & \texttt{round\_keys} & 2.59 & \multirow{2}{*}{106.20} & 2.19 & \multirow{2}{*}{138.42} \\
+                                                & \texttt{encrypt} & 17.14 & & 15.11 & \\
+        \cmidrule(lr){2-2}
+                                                & \texttt{ feistel\_round} & 1.00 & & 0.69 & \\
+                                                & \texttt{ F} & 0.79 & & 0.58 & \\
+                                                & \texttt{ FL} & 0.36 & & 0.13 & \\
+                                                & \texttt{ pack} & 1.04 & & 0.96 & \\
+                                                & \texttt{ unpack} & 0.91 & & 0.83 & \\
         \bottomrule
     \end{tabular}
 \end{table}
