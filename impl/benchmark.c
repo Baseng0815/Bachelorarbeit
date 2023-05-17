@@ -375,10 +375,10 @@ int main(int argc, char *argv[])
         /* benchmark_gift_128(); */
         /* benchmark_gift_64_table(); */
         /* benchmark_gift_64_vec_sbox(); */
-        /* benchmark_gift_64_vec_sliced(); */
-        benchmark_camellia_naive();
-        benchmark_camellia_spec_opt();
-        benchmark_camellia_sliced();
+        benchmark_gift_64_vec_sliced();
+        /* benchmark_camellia_naive(); */
+        /* benchmark_camellia_spec_opt(); */
+        /* benchmark_camellia_sliced(); */
 }
 
 #pragma clang optimize on

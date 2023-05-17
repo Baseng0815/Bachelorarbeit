@@ -40,10 +40,17 @@ extensions. The cipher state is stored as a 64-bit word and one round consists
 in extracting the 4-bit S-boxes, looking up table values, collecting these in
 an accumulator and finally adding the round key.
 
-% TODO add bitfield extract explanation here
-
 \lstinputlisting[language=c, firstline=77, lastline=87]{../impl/table/gift_table.c}
 \lstinputlisting[language=c, firstline=89, lastline=101]{../impl/table/gift_table.c}
+
+Lots of operations require extraction of a certain number of consecutive bits,
+usually referred to as a bitfield. Indices for table lookups are generally
+attained by right-shifting a larger value stored in a register, then applying
+an AND operation to get the lowest $n$ bits and finally writing the result into
+the beginning of another register. Due to its usefulness, this operation is
+implemented as \texttt{UBFX} for an unsigned bitfield extract and can be used
+to implement S-box extraction for subperm lookups which would otherwise take
+two or three instructions.
 
 \subsection{Using \texttt{vperm}}
 
@@ -58,12 +65,55 @@ with 4-bit S-boxes and vice versa.
 \lstinputlisting[language=c, firstline=197, lastline=212]{../impl/vector/gift_vec_sbox.c}
 
 \subsection{Bitslicing}
+\subsubsection{Shifts for swapmove}
 
+Implementing shift functions for 128-bit NEON registers by extracting the
+overflow and adding it back in later can be realized using 5 instructions. It
+would be most useful for the function to take a shift amount parameter, but
+most NEON intrinsics encode their parameters into the final machine code such
+that parameters need to be compile-time constants. We will therefore implement
+\texttt{shl}, \texttt{shr} and \texttt{swapmove} as C macros utilizing the
+\texttt{vextq\_u64} intrinsic to swap the two 64-bit vector elements:
+
+\begin{lstlisting}{language=c, caption={Shift and swapmove}}
+
+/*
+uint8x16_t shl(const uint8x16_t v, const int n) */
+#define shl(_a, v, n)                                                       \
+{                                                                           \
+        uint64x2_t _overflow = vshrq_n_u64(v, 64 - n);                      \
+        _overflow = vextq_u64(vdupq_n_u64(0x0), _overflow, 1);              \
+        _a = vorrq_u8(vshlq_n_u64(v, n), _overflow);                        \
+}
+
+/*
+uint8x16_t shr(const uint8x16_t v, const int n) */
+#define shr(_a, v, n)                                                       \
+{                                                                           \
+        uint64x2_t _overflow = vshlq_n_u64(v, 64 - n);                      \
+        _overflow = vextq_u64(_overflow, vdupq_n_u64(0x0), 1);              \
+        _a = vorrq_u8(vshrq_n_u64(v, n), _overflow);                        \
+}
+
+/* implemented as a macro so we can use vshlq_n_u8 with variable n
+void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b,
+                                 const uint8x16_t m, const int n) */
+#define gift_64_vec_sliced_swapmove(a, b, m, n)                             \
+{                                                                           \
+        uint8x16_t _a;                                                      \
+        shr(_a, a, n);                                                      \
+        const uint8x16_t _t = vandq_u8(veorq_u8(_a, b), m);                 \
+        b = veorq_u8(b, _t);                                                \
+        shl(_a, _t, n);                                                     \
+        a = veorq_u8(a, _a);                                                \
+}
+\end{lstlisting}
+
+\subsubsection{Round function}
 We will examine the round function in closer detail and compare the source code
 with the generated assembly.
-\pagebreak
 
-\begin{lstlisting}[language=c, caption={Round function src}]
+\begin{lstlisting}[language=c, caption={Round function}]
 for (int round = 0; round < ROUNDS_GIFT_64; round++) {
     gift_64_vec_sliced_subcells(s);
     gift_64_vec_sliced_permute(s);
@@ -136,15 +186,14 @@ b.ne    197e0
     \end{lstlisting}
 \end{minipage}
 
-Without needing to dive too deep into details, it is obvious to see the
-compiler has inlined the two function calls to \texttt{subcells} and
-\texttt{permute} with lines 1 to 23 originating from the \texttt{subcells} and
-lines 24-46 from the \texttt{permute} and round key addition functions. It has
-chosen not to unroll the loop, but has moved the loop counter increment as well
-as the condition check in between the \texttt{subcells} instructions to line
-\ref{lst:cntrincr} and \ref{lst:cntrchk}. In addition, the loop counter serves
-a second purpose as an offset register and is therefore incremented by 0x80=128
-instead of just 1.
+It is obvious to see the compiler has inlined the two function calls to
+\texttt{subcells} and \texttt{permute} with lines 1 to 23 originating from the
+\texttt{subcells} and lines 24-46 from the \texttt{permute} and round key
+addition functions. It has chosen not to unroll the loop, but has moved the
+loop counter increment as well as the condition check in between the
+\texttt{subcells} instructions to line \ref{lst:cntrincr} and
+\ref{lst:cntrchk}. In addition, the loop counter serves a second purpose as an
+offset register and is therefore incremented by 0x80=128 instead of just 1.
 
 Permutation (\texttt{tbl}) and round key addition (\texttt{eor}) instructions
 are interleaved. The compiler recognizes data dependencies and can therefore

@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import matplotlib.pyplot as pp
+
+benchmarks_a53 = [
+    ('naive GIFT-64', 2.33),
+    ('naive GIFT-128', 0.79),
+    ('Table-driven GIFT-64', 16.09),
+    ('vperm GIFT-64', 3.93),
+    ('bit-sliced GIFT-64', 150.50),
+    ('naive Camellia-128', 46.71),
+    ('naive Camellia-256', 35.16),
+    ('optimized Camellia-128', 107.31),
+    ('byte-sliced Camellia-128', 138.42)
+]
+
+values = [x[1] for x in benchmarks_a53]
+
+pp.xlabel('Throughput in MiB/s')
+pp.plot(values, np.zeros_like(values), 'x')
+for a in benchmarks_a53:
+    pp.annotate(a[0], xy=(a[1], 0.01))
+pp.show()
