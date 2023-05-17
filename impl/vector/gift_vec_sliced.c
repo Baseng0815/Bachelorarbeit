@@ -51,18 +51,18 @@ static const int round_const[] = {
 uint8x16_t shl(const uint8x16_t v, const int n) */
 #define shl(_a, v, n)                                                       \
 {                                                                           \
-        uint64x2_t _overflow = vshrq_n_u64(v, 64 - n);                        \
-        _overflow = vextq_u64(vdupq_n_u64(0x0), _overflow, 1);                \
-        _a = vorrq_u8(vshlq_n_u64(v, n), _overflow);                                         \
+        uint64x2_t _overflow = vshrq_n_u64(v, 64 - n);                      \
+        _overflow = vextq_u64(vdupq_n_u64(0x0), _overflow, 1);              \
+        _a = vorrq_u8(vshlq_n_u64(v, n), _overflow);                        \
 }
 
 /*
 uint8x16_t shr(const uint8x16_t v, const int n) */
 #define shr(_a, v, n)                                                       \
 {                                                                           \
-        uint64x2_t _overflow = vshlq_n_u64(v, 64 - n); \
-        _overflow = vextq_u64(_overflow, vdupq_n_u64(0x0), 1);                \
-        _a = vorrq_u8(vshrq_n_u64(v, n), _overflow);                                         \
+        uint64x2_t _overflow = vshlq_n_u64(v, 64 - n);                      \
+        _overflow = vextq_u64(_overflow, vdupq_n_u64(0x0), 1);              \
+        _a = vorrq_u8(vshrq_n_u64(v, n), _overflow);                        \
 }
 
 /* implemented as a macro so we can use vshlq_n_u8 with variable n
@@ -70,12 +70,12 @@ void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b,
                                  const uint8x16_t m, const int n) */
 #define gift_64_vec_sliced_swapmove(a, b, m, n)                             \
 {                                                                           \
-        uint8x16_t _a;                                                \
+        uint8x16_t _a;                                                      \
         shr(_a, a, n);                                                      \
         const uint8x16_t _t = vandq_u8(veorq_u8(_a, b), m);                 \
         b = veorq_u8(b, _t);                                                \
-        shl(_a, _t, n);                                                      \
-        a = veorq_u8(a, _a);                                               \
+        shl(_a, _t, n);                                                     \
+        a = veorq_u8(a, _a);                                                \
 }
 
 void gift_64_vec_sliced_bits_pack(uint8x16x4_t m[restrict 2])
