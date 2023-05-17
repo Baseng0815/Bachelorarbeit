@@ -216,7 +216,22 @@ void camellia_sliced_feistel_round(uint8x16x4_t state[restrict 4],
 void camellia_sliced_feistel_round_inv(uint8x16x4_t state[restrict 4],
                                        const uint8x16x4_t kr[restrict 2])
 {
-        // TODO
+        uint8x16x4_t F[2] = {
+                state[2], state[3]
+        };
+
+        // F function swaps result
+        camellia_sliced_F(F, kr);
+
+        for (size_t j = 0; j < 4; j++) {
+                F[0].val[j] = veorq_u8(state[1].val[j], F[0].val[j]);
+                F[1].val[j] = veorq_u8(state[0].val[j], F[1].val[j]);
+        }
+
+        state[0] = state[2];
+        state[1] = state[3];
+        state[2] = F[1];
+        state[3] = F[0];
 }
 
 void camellia_sliced_generate_round_keys_128(struct camellia_rks_sliced_128 *restrict rks,
@@ -416,4 +431,53 @@ void camellia_sliced_encrypt_128(uint64_t c[restrict 16][2],
 
 void camellia_sliced_decrypt_128(uint64_t m[restrict 16][2],
                                  const uint64_t c[restrict 16][2],
-                                 struct camellia_rks_sliced_128 *restrict rks);
+                                 struct camellia_rks_sliced_128 *restrict rks)
+{
+        uint8x16x4_t state[4];
+        camellia_sliced_pack(state, c);
+
+        // kw2/kw3
+        for (size_t byte = 0; byte < 16; byte++) {
+                uint8x16_t *reg     = &state[byte / 4].val[byte % 4];
+                uint8x16x4_t *key   = &rks->kw[byte / 8 + 2][(byte % 8) / 4];
+
+                *reg = veorq_u8(*reg, key->val[byte % 4]);
+        }
+
+
+        // swap state[0,1] and state[2,3] (concatenation of R||L)
+        uint8x16x4_t tmp = state[0];
+        state[0] = state[2];
+        state[2] = tmp;
+        tmp = state[1];
+        state[1] = state[3];
+        state[3] = tmp;
+
+        for (size_t i = 6; i --> 0; ) {
+                camellia_sliced_feistel_round_inv(state, rks->ku[i + 12]);
+        }
+
+        camellia_sliced_FL(&state[2], rks->kl[3]);
+        camellia_sliced_FL_inv(&state[0], rks->kl[2]);
+
+        for (size_t i = 6; i --> 0; ) {
+                camellia_sliced_feistel_round_inv(state, rks->ku[i + 6]);
+        }
+
+        camellia_sliced_FL(&state[2], rks->kl[1]);
+        camellia_sliced_FL_inv(&state[0], rks->kl[0]);
+
+        for (size_t i = 6; i --> 0; ) {
+                camellia_sliced_feistel_round_inv(state, rks->ku[i + 0]);
+        }
+
+        // kw0/kw1
+        for (size_t byte = 0; byte < 16; byte++) {
+                uint8x16_t *reg     = &state[byte / 4].val[byte % 4];
+                uint8x16x4_t *key   = &rks->kw[byte / 8 + 0][(byte % 8) / 4];
+
+                *reg = veorq_u8(*reg, key->val[byte % 4]);
+        }
+
+        camellia_sliced_unpack(m, state);
+}

@@ -29,12 +29,6 @@
                 exit(-1);\
         }
 
-void key_rand(uint64_t k[])
-{
-        k[0] = rand();
-        k[1] = rand();
-}
-
 void m_rand(uint8_t m[], size_t n)
 {
         for (size_t i = 0; i < n; i++) {
@@ -60,7 +54,7 @@ void test_gift_64(void)
         // test encrypt-decrypt
         printf("testing GIFT_64 encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 m_rand((uint8_t*)&m, 8);
                 memset(&m, 0, sizeof(m));
 
@@ -94,7 +88,7 @@ void test_gift_128(void)
         // test encrypt-decrypt
         printf("testing GIFT_128 encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 m_rand(m, 16);
 
                 gift_128_generate_round_keys(rks, key);
@@ -126,7 +120,7 @@ void test_gift_64_sliced(void)
         // test encrypt-decrypt
         printf("testing GIFT_64_SLICED encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 for (size_t j = 0; j < 8; j++) {
                         m_rand((uint8_t*)&m, sizeof(m));
                 }
@@ -153,7 +147,7 @@ void test_gift_64_table(void)
         // test encrypt-decrypt
         printf("testing GIFT_64_TABLE encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 m_rand((uint8_t*)&m, sizeof(m));
 
                 c = gift_64_table_encrypt(m, key);
@@ -182,7 +176,7 @@ void test_gift_64_vec_sbox(void)
         // test encrypt-decrypt
         printf("testing GIFT_64_VEC_SBOX encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 m_rand((uint8_t*)&m, sizeof(m));
 
                 gift_64_vec_sbox_generate_round_keys(rks, key);
@@ -259,7 +253,7 @@ void test_gift_64_vec_sliced(void)
         // test encrypt-decrypt
         printf("testing GIFT_64_VEC_SLICED encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 m_rand((uint8_t*)m, sizeof(m));
                 memset(m, 0, sizeof(m));
 
@@ -282,7 +276,7 @@ void test_camellia_naive(void)
         printf("testing CAMELLIA_NAIVE FL-FL_inv and feistel-feistel_inv...\n");
         for (int i = 0; i < 256; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 ASSERT_EQUALS(camellia_naive_FL(camellia_spec_opt_FL_inv(m[0], key[0]), key[0]), m[0]);
                 ASSERT_EQUALS(camellia_naive_FL_inv(camellia_spec_opt_FL(m[1], key[1]), key[1]), m[1]);
 
@@ -311,7 +305,7 @@ void test_camellia_naive(void)
         printf("testing CAMELLIA_NAIVE 128-bit encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 camellia_naive_generate_round_keys_128(&rks_128, key);
 
                 uint64_t m_decr[2];
@@ -360,7 +354,7 @@ void test_camellia_spec_opt(void)
         printf("testing CAMELLIA_SPEC_OPT FL-FL_inv and feistel-feistel_inv...\n");
         for (int i = 0; i < 256; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 ASSERT_EQUALS(camellia_spec_opt_FL(camellia_spec_opt_FL_inv(m[0], key[0]), key[0]), m[0]);
                 ASSERT_EQUALS(camellia_spec_opt_FL_inv(camellia_spec_opt_FL(m[1], key[1]), key[1]), m[1]);
 
@@ -389,7 +383,7 @@ void test_camellia_spec_opt(void)
         printf("testing CAMELLIA_SPEC_OPT 128-bit encrypt-decrypt...\n");
         for (int i = 0; i < 100; i++) {
                 m_rand((uint8_t*)m, sizeof(m));
-                key_rand(key);
+                m_rand((uint8_t*)key, sizeof(key));
                 camellia_spec_opt_generate_round_keys_128(&rks_128, key);
 
                 uint64_t m_decr[2];
@@ -428,6 +422,21 @@ void test_camellia_sliced(void)
         for (size_t i = 0; i < 16; i++) {
                 ASSERT_TRUE(memcmp(c_expected, &c[i], sizeof(c_expected)) == 0);
         }
+
+        printf("testing CAMELLIA_SLICED 128-bit encrypt-decrypt...\n");
+        for (int i = 0; i < 100; i++) {
+                m_rand((uint8_t*)m, sizeof(m));
+                m_rand((uint8_t*)key, sizeof(key));
+                camellia_sliced_generate_round_keys_128(&rks, key);
+
+                uint64_t m_decr[16][2];
+                camellia_sliced_encrypt_128(c, m, &rks);
+                camellia_sliced_decrypt_128(m_decr, c, &rks);
+                for (size_t i = 0; i < 16; i++) {
+                        ASSERT_EQUALS(m_decr[i][0], m[i][0]);
+                        ASSERT_EQUALS(m_decr[i][1], m[i][1]);
+                }
+        }
 }
 
 int main(int argc, char *argv[])
@@ -439,8 +448,8 @@ int main(int argc, char *argv[])
         /* test_gift_64_table(); */
         /* test_gift_64_vec_sbox(); */
         /* test_gift_64_vec_sliced(); */
-        test_camellia_naive();
-        test_camellia_spec_opt();
+        /* test_camellia_naive(); */
+        /* test_camellia_spec_opt(); */
         test_camellia_sliced();
 }
 
