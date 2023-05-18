@@ -1,5 +1,4 @@
-#ifndef GIFT_H
-#define GIFT_H
+#pragma once
 
 #include <stdint.h>
 
@@ -31,5 +30,3 @@ void gift_128_encrypt(uint8_t c[restrict 16],
 void gift_128_decrypt(uint8_t m[restrict 16],
                       const uint8_t c[restrict 16],
                       const uint8_t round_keys[restrict ROUNDS_GIFT_128][32]);
-
-#endif

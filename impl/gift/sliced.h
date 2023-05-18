@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 
 #define ROUNDS_GIFT_SLICED_64 28

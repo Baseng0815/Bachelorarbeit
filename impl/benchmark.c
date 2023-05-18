@@ -1,10 +1,11 @@
 #pragma clang optimize off
 
-#include "naive/gift.h"
-#include "naive/gift_sliced.h"
-#include "table/gift_table.h"
-#include "vector/gift_vec_sbox.h"
-#include "vector/gift_vec_sliced.h"
+#include "gift/naive.h"
+#include "gift/sliced.h"
+#include "gift/table.h"
+#include "gift/vec_sbox.h"
+#include "gift/vec_sliced.h"
+
 #include "camellia/naive.h"
 #include "camellia/spec_opt.h"
 #include "camellia/bytesliced.h"
@@ -375,10 +376,10 @@ int main(int argc, char *argv[])
         /* benchmark_gift_128(); */
         /* benchmark_gift_64_table(); */
         /* benchmark_gift_64_vec_sbox(); */
-        benchmark_gift_64_vec_sliced();
+        /* benchmark_gift_64_vec_sliced(); */
         /* benchmark_camellia_naive(); */
         /* benchmark_camellia_spec_opt(); */
-        /* benchmark_camellia_sliced(); */
+        benchmark_camellia_sliced();
 }
 
 #pragma clang optimize on

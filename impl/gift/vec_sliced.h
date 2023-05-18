@@ -1,5 +1,4 @@
-#ifndef GIFT_VEC_SLICED_H
-#define GIFT_VEC_SLICED_H
+#pragma once
 
 #include <stdint.h>
 #include <arm_neon.h>
@@ -29,5 +28,3 @@ void gift_64_vec_sliced_encrypt(uint64_t c[restrict 16],
 void gift_64_vec_sliced_decrypt(uint64_t m[restrict 16],
                                 const uint64_t c[restrict 16],
                                 const uint8x16x4_t rks[restrict ROUNDS_GIFT_64][2]);
-
-#endif

@@ -240,18 +240,18 @@ in their entirety due to the fact bits are not able to cross lanes. This leads
 to the problem of being able to shift at most two lanes of 64 bits at once. We
 thus need to implement the \texttt{shr(V,n)} and \texttt{shl(V,n)} operations
 on our own. This can be done by extracting and shifting the overflow $ov$ out
-of $V=b||a$, shifting the lanes individually and finally ORing the overflow
-bits to the corresponding vector element.
+of $V=V[1]||V[0]$, shifting the lanes individually and finally ORing the
+overflow bits to the corresponding vector element.
 
 \begin{alignat*}{2}
     &\text{shl}(V,n): \\
-    &\qquad ov&&=V[0]\land(\lnot(\texttt{0xffffffffffffffff}\gg_n))\gg_{63-n} \\
-    &\qquad V[0]&&=V[0]\gg_n \\
-    &\qquad V[1]&&=(V[1]\gg_n)\lor ov
+    &\qquad ov&&=V[0]\gg_{64-n} \\
+    &\qquad V[0]&&=V[0]\ll \\
+    &\qquad V[1]&&=(V[1]\ll)\lor ov
 \end{alignat*}
 
 The following operations group all $i$-th bits of the messages $a,c,\dots,o$
-into bytes and puts these into the lower half of the registers $V_{i\bmod 8}$.
+into bytes and put these into the lower half of the registers $V_{i\bmod 8}$.
 The same is done for messages $b,d,\dots,p$, only differing in that the bytes
 are put into the upper half of the registers.
 
@@ -412,10 +412,11 @@ Because Camellia is a byte-oriented block cipher, we can pursue a similar
 strategy as for GIFT: find a convenient data packing format and a way to apply
 necessary operations in parallel.
 
-We choose to encrypt 16 plaintext blocks at once so we can fill 16 vector
-registers with register $V_i$ containing all $i$-th bytes. This lends itself well
-to a NEON implementation since S-boxes as well as the FL layer, Feistel round
-and packing/unpacking functions can be implemented efficiently.
+We choose a bytesliced representation by encrypting 16 plaintext blocks at once
+so we can fill 16 vector registers with register $V_i$ containing all $i$-th
+bytes. This lends itself well to a NEON implementation since S-boxes as well as
+the FL layer, Feistel round and packing/unpacking functions can be implemented
+efficiently.
 
 \subsubsection{Packing and unpacking}
 
@@ -427,14 +428,14 @@ blocks. Unpacking is done in a similar way with different permutation tables.
 \begin{figure}[h!]
     \centering
     \includegraphics[width=\textwidth]{Figures/byteslicing.pdf}
-    \caption{Camellia byte-sliced packing function with 32 \texttt{TBL} operations.
+    \caption{Camellia bytesliced packing function with 32 \texttt{TBL} operations.
     Curly brackets represent a 4-element vector array being used as source registers.}
     \label{fig:byteslicing}
 \end{figure}
 
 \subsubsection{Hardware-accelerated Camellia S-box}
 
-A byte-sliced implementation strategy for the S-box on ARMv8 can be derived
+A bytesliced implementation strategy for the S-box on ARMv8 can be derived
 from already existing x86-optimized implementations utilizing the AES-NI
 advanced encryption standard instruction set \cite{bcfastimplx86:2013}. NEON
 itself possesses cryptographic extensions for finite field arithmetic and AES
@@ -605,12 +606,10 @@ the Camellia specification with the difference that we choose to not swap the
 lower and higher 4 bytes, but rather compensate for this by choosing the
 correct bytes when XORing with the other half later in the Feistel round.
 
-% TODO add graphic here
-
 \begin{figure}[h!]
     \centering
     \includegraphics[width=\textwidth]{Figures/camelliaround.pdf}
-    \caption{Camellia byte-sliced Feistel round function}
+    \caption{Camellia bytesliced Feistel round function}
 \end{figure}
 
 \subsubsection{FL layer}
@@ -618,7 +617,11 @@ correct bytes when XORing with the other half later in the Feistel round.
 The two functions $FL,FL^{-1}$ can be implemented in a straightforward manner
 once 1-bit left rotation has been defined for the bytesliced representation.
 This can be facilitated by extracting the highest bit of each byte, shifting it
-all the way to the right and storing it as overflow $o_i$. $o_i$ is then added
+all the way to the right and storing it as overflow $ov_i$. $ov_i$ is then added
 to the left-shifted value of byte $(i + 4) (\bmod 4)$ for the final result.
 
-% TODO add graphic here
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Figures/camellia_bytesliced_rol.pdf}
+    \caption{Camellia bytesliced 1-bit left rotate}
+\end{figure}

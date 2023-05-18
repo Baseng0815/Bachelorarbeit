@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "gift.h"
+#include "naive.h"
 
 // implementation of GIFT-64 in pure C, without any intrinsics
 

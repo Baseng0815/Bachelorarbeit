@@ -1,8 +1,8 @@
-#include "gift_vec_sbox.h"
-
-#include <stdint.h>
 #include <arm_neon.h>
-#include <string.h>
+#include <stdint.h>
+#include <stddef.h>
+
+#include "vec_sbox.h"
 
 static uint64_t sbox_vec_u64[2] = {
         0x09030f060c040a01UL, 0x0e080005070b0d02UL
@@ -46,22 +46,25 @@ uint8x16_t gift_64_vec_sbox_bits_pack(const uint64_t a)
 uint64_t gift_64_vec_sbox_bits_unpack(const uint8x16_t v)
 {
         uint64_t a = 0UL;
-        a |= (uint64_t)vgetq_lane_u8(v, 0) << 4 * 0;
-        a |= (uint64_t)vgetq_lane_u8(v, 1) << 4 * 1;
-        a |= (uint64_t)vgetq_lane_u8(v, 2) << 4 * 2;
-        a |= (uint64_t)vgetq_lane_u8(v, 3) << 4 * 3;
-        a |= (uint64_t)vgetq_lane_u8(v, 4) << 4 * 4;
-        a |= (uint64_t)vgetq_lane_u8(v, 5) << 4 * 5;
-        a |= (uint64_t)vgetq_lane_u8(v, 6) << 4 * 6;
-        a |= (uint64_t)vgetq_lane_u8(v, 7) << 4 * 7;
-        a |= (uint64_t)vgetq_lane_u8(v, 8) << 4 * 8;
-        a |= (uint64_t)vgetq_lane_u8(v, 9) << 4 * 9;
-        a |= (uint64_t)vgetq_lane_u8(v, 10) << 4 * 10;
-        a |= (uint64_t)vgetq_lane_u8(v, 11) << 4 * 11;
-        a |= (uint64_t)vgetq_lane_u8(v, 12) << 4 * 12;
-        a |= (uint64_t)vgetq_lane_u8(v, 13) << 4 * 13;
-        a |= (uint64_t)vgetq_lane_u8(v, 14) << 4 * 14;
-        a |= (uint64_t)vgetq_lane_u8(v, 15) << 4 * 15;
+        uint64_t lane = vgetq_lane_u64(v, 0);
+        a = (uint64_t)((lane >> 8 * 0) & 0xf) << 4 * 0 |
+            (uint64_t)((lane >> 8 * 1) & 0xf) << 4 * 1 |
+            (uint64_t)((lane >> 8 * 2) & 0xf) << 4 * 2 |
+            (uint64_t)((lane >> 8 * 3) & 0xf) << 4 * 3 |
+            (uint64_t)((lane >> 8 * 4) & 0xf) << 4 * 4 |
+            (uint64_t)((lane >> 8 * 5) & 0xf) << 4 * 5 |
+            (uint64_t)((lane >> 8 * 6) & 0xf) << 4 * 6 |
+            (uint64_t)((lane >> 8 * 7) & 0xf) << 4 * 7;
+
+        lane = vgetq_lane_u64(v, 1);
+        a |= (uint64_t)((lane >> 8 * 0) & 0xf) << 4 * 8  |
+             (uint64_t)((lane >> 8 * 1) & 0xf) << 4 * 9  |
+             (uint64_t)((lane >> 8 * 2) & 0xf) << 4 * 10 |
+             (uint64_t)((lane >> 8 * 3) & 0xf) << 4 * 11 |
+             (uint64_t)((lane >> 8 * 4) & 0xf) << 4 * 12 |
+             (uint64_t)((lane >> 8 * 5) & 0xf) << 4 * 13 |
+             (uint64_t)((lane >> 8 * 6) & 0xf) << 4 * 14 |
+             (uint64_t)((lane >> 8 * 7) & 0xf) << 4 * 15;
 
         return a;
 }

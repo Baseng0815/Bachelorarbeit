@@ -1,9 +1,9 @@
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+
 #include "spec_opt.h"
 #include "spec_opt_table.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static const uint64_t keysched_const[] = {
         0xa09e667f3bcc908bUL,
@@ -21,11 +21,10 @@ static const uint64_t keysched_const[] = {
         (_a) = ((_a) << (_n)) | ((_t) >> (64 - (_n)));\
 }
 
-#define expr_rol32_1(_a)\
-        (((_a) << 1) | ((_a) >> 31))
-
-#define expr_rol32_8(_a)\
-        (((_a) << 8) | ((_a) >> 24))
+static uint32_t rol32_1(uint32_t a)
+{
+        return (a << 1) | (a >> 31);
+}
 
 uint64_t camellia_spec_opt_F(uint64_t X, const uint64_t k)
 {
@@ -53,7 +52,7 @@ uint64_t camellia_spec_opt_FL(uint64_t X, const uint64_t kl)
         const uint32_t klL = (kl >> 32);
         const uint32_t klR = (kl >> 0);
 
-        const uint32_t YR = expr_rol32_1(XL & klL) ^ XR;
+        const uint32_t YR = rol32_1(XL & klL) ^ XR;
         const uint32_t YL = (YR | klR) ^ XL;
 
         return ((uint64_t)YL << 32) | (uint64_t)YR;
@@ -68,7 +67,7 @@ uint64_t camellia_spec_opt_FL_inv(uint64_t Y, const uint64_t kl)
         const uint32_t klR = (kl >> 0);
 
         const uint32_t XL = (YR | klR) ^ YL;
-        const uint32_t XR = expr_rol32_1(XL & klL) ^ YR;
+        const uint32_t XR = rol32_1(XL & klL) ^ YR;
 
         return ((uint64_t)XL << 32) | (uint64_t)XR;
 }
@@ -143,7 +142,7 @@ void camellia_spec_opt_generate_round_keys_128(struct camellia_rks_128 *restrict
 
 void camellia_spec_opt_encrypt_128(uint64_t c[restrict 2],
                             const uint64_t m[restrict 2],
-                            struct camellia_rks_128 *restrict rks)
+                            const struct camellia_rks_128 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
@@ -178,7 +177,7 @@ void camellia_spec_opt_encrypt_128(uint64_t c[restrict 2],
 
 void camellia_spec_opt_decrypt_128(uint64_t m[restrict 2],
                             const uint64_t c[restrict 2],
-                            struct camellia_rks_128 *restrict rks)
+                            const struct camellia_rks_128 *restrict rks)
 {
         memcpy(m, c, sizeof(m[0]) * 2);
 

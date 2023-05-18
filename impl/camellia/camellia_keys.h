@@ -1,5 +1,4 @@
-#ifndef CAMELLIA_KEYS
-#define CAMELLIA_KEYS
+#pragma once
 
 #include <stdint.h>
 #include <arm_neon.h>
@@ -21,5 +20,3 @@ struct camellia_rks_sliced_128 {
         uint8x16x4_t ku[18][2]; // used in F function
         uint8x16x4_t kl[4][2]; // used in FL layer
 };
-
-#endif

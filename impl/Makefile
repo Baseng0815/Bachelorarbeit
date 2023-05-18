@@ -7,10 +7,7 @@ UFLAGS	= -O3 -Wall -gdwarf-4
 SESNAME	= thesis
 HOST 	= engelnet.ddns.net
 
-SOURCE_FILES 	= naive/gift.c naive/gift_sliced.c table/gift_table.c \
-		  vector/gift_vec_sbox.c vector/gift_vec_sliced.c \
-		  camellia/naive.c camellia/spec_opt.c \
-		  camellia/spec_opt_table.c camellia/bytesliced.c
+SOURCE_FILES 	= $(shell find ./gift -name '*.c') $(shell find ./camellia -name '*.c')
 BENCH_SOURCE	= benchmark.c
 BENCH_OUT 	= benchmark
 TEST_SOURCE	= test.c

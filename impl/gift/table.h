@@ -1,5 +1,4 @@
-#ifndef GIFT_TABLE_H
-#define GIFT_TABLE_H
+#pragma once
 
 #include <stdint.h>
 
@@ -13,5 +12,3 @@ uint64_t gift_64_table_subperm(const uint64_t cipher_state);
 // can only encrypt using table technique!
 uint64_t gift_64_table_encrypt(const uint64_t m,
                                const uint64_t rks[restrict ROUNDS_GIFT_64]);
-
-#endif

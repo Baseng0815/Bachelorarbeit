@@ -1,8 +1,8 @@
-#include "naive.h"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdint.h>
+#include <stddef.h>
 #include <string.h>
+
+#include "naive.h"
 
 static const uint64_t keysched_const[] = {
         0xa09e667f3bcc908bUL,
@@ -391,7 +391,7 @@ void camellia_naive_generate_round_keys_256(struct camellia_rks_256 *restrict rk
 
 void camellia_naive_encrypt_128(uint64_t c[restrict 2],
                                 const uint64_t m[restrict 2],
-                                struct camellia_rks_128 *restrict rks)
+                                const struct camellia_rks_128 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
@@ -425,7 +425,7 @@ void camellia_naive_encrypt_128(uint64_t c[restrict 2],
 
 void camellia_naive_decrypt_128(uint64_t m[restrict 2],
                                 const uint64_t c[restrict 2],
-                                struct camellia_rks_128 *restrict rks)
+                                const struct camellia_rks_128 *restrict rks)
 {
         memcpy(m, c, sizeof(m[0]) * 2);
 
@@ -459,7 +459,7 @@ void camellia_naive_decrypt_128(uint64_t m[restrict 2],
 
 void camellia_naive_encrypt_256(uint64_t c[restrict 2],
                                 const uint64_t m[restrict 2],
-                                struct camellia_rks_256 *restrict rks)
+                                const struct camellia_rks_256 *restrict rks)
 {
         memcpy(c, m, sizeof(c[0]) * 2);
 
@@ -499,7 +499,7 @@ void camellia_naive_encrypt_256(uint64_t c[restrict 2],
 
 void camellia_naive_decrypt_256(uint64_t m[restrict 2],
                                 const uint64_t c[restrict 2],
-                                struct camellia_rks_256 *restrict rks)
+                                const struct camellia_rks_256 *restrict rks)
 {
         memcpy(m, c, sizeof(m[0]) * 2);
 

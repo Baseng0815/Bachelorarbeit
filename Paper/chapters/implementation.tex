@@ -40,8 +40,8 @@ extensions. The cipher state is stored as a 64-bit word and one round consists
 in extracting the 4-bit S-boxes, looking up table values, collecting these in
 an accumulator and finally adding the round key.
 
-\lstinputlisting[language=c, firstline=77, lastline=87]{../impl/table/gift_table.c}
-\lstinputlisting[language=c, firstline=89, lastline=101]{../impl/table/gift_table.c}
+\lstinputlisting[language=c, caption={GIFT-64 table subperm}, firstline=77, lastline=87]{../impl/gift/table.c}
+\lstinputlisting[language=c, caption={GIFT-64 table encrypt}, firstline=89, lastline=101]{../impl/gift/table.c}
 
 Lots of operations require extraction of a certain number of consecutive bits,
 usually referred to as a bitfield. Indices for table lookups are generally
@@ -50,7 +50,15 @@ an AND operation to get the lowest $n$ bits and finally writing the result into
 the beginning of another register. Due to its usefulness, this operation is
 implemented as \texttt{UBFX} for an unsigned bitfield extract and can be used
 to implement S-box extraction for subperm lookups which would otherwise take
-two or three instructions.
+two or three instructions. Interestingly, the AArch64 instruction set makes
+heavy use of instruction aliasing. The logical shift left instruction
+\texttt{lsl} for example is an alias of \texttt{UBFX} which itself is an alias
+for \texttt{UBFM}.
+
+Another keyword aiding in optimization is \texttt{restrict} which can be used
+for pointer and array function parameters; the programmer can add this keyword
+to parameters to tell the compiler they are never aliased by any other pointers
+which allows the compiler to rearrange instructions and eliminate loads.
 
 \subsection{Using \texttt{vperm}}
 
@@ -60,11 +68,26 @@ turn is disadvantageous to the permutation layer as we need to extract single
 bits. Packing and unpacking is nothing more than filling 8-bit vector lanes
 with 4-bit S-boxes and vice versa.
 
-\lstinputlisting[language=c, firstline=92, lastline=95]{../impl/vector/gift_vec_sbox.c}
-\lstinputlisting[language=c, firstline=102, lastline=117]{../impl/vector/gift_vec_sbox.c}
-\lstinputlisting[language=c, firstline=197, lastline=212]{../impl/vector/gift_vec_sbox.c}
+\lstinputlisting[language=c, caption={\texttt{vperm} S-box}, firstline=95, lastline=98]{../impl/gift/vec_sbox.c}
+\lstinputlisting[language=c, caption={\texttt{vperm} permutation}, firstline=105, lastline=120]{../impl/gift/vec_sbox.c}
+\lstinputlisting[language=c, caption={\texttt{vperm} encrypt function}, firstline=200, lastline=215]{../impl/gift/vec_sbox.c}
 
 \subsection{Bitslicing}
+
+\subsubsection{A note on data storage}
+
+NEON only provides 32 vector registers. While this is more than the 16 YMM
+registers offered by Intel's AVX-256 vector extension, it is not enough to
+accompany all 28 round keys for GIFT-64 plus the 16 registers representing
+cipher state at once. Because loading and storing single registers is
+inefficient, data is represented using the vector array type
+\texttt{uint8x16x4\_t}. Loads and stores are then assembled such that the whole
+array is loaded or stored in a single instruction. Loading a single vector from
+memory for example has a latency of 5 cycles while loading four vectors into a
+vector array can be done in 8 cycles which results in an amortized cost of 2
+cycles per vector. Vectors are grouped into vector arrays as often as possible
+to reduce the number of necessary loads and stores.
+
 \subsubsection{Shifts for swapmove}
 
 Implementing shift functions for 128-bit NEON registers by extracting the
@@ -75,43 +98,14 @@ that parameters need to be compile-time constants. We will therefore implement
 \texttt{shl}, \texttt{shr} and \texttt{swapmove} as C macros utilizing the
 \texttt{vextq\_u64} intrinsic to swap the two 64-bit vector elements:
 
-\begin{lstlisting}{language=c, caption={Shift and swapmove}}
-
-/*
-uint8x16_t shl(const uint8x16_t v, const int n) */
-#define shl(_a, v, n)                                                       \
-{                                                                           \
-        uint64x2_t _overflow = vshrq_n_u64(v, 64 - n);                      \
-        _overflow = vextq_u64(vdupq_n_u64(0x0), _overflow, 1);              \
-        _a = vorrq_u8(vshlq_n_u64(v, n), _overflow);                        \
-}
-
-/*
-uint8x16_t shr(const uint8x16_t v, const int n) */
-#define shr(_a, v, n)                                                       \
-{                                                                           \
-        uint64x2_t _overflow = vshlq_n_u64(v, 64 - n);                      \
-        _overflow = vextq_u64(_overflow, vdupq_n_u64(0x0), 1);              \
-        _a = vorrq_u8(vshrq_n_u64(v, n), _overflow);                        \
-}
-
-/* implemented as a macro so we can use vshlq_n_u8 with variable n
-void gift_64_vec_sliced_swapmove(uint8x16_t *restrict a, uint8x16_t *restrict b,
-                                 const uint8x16_t m, const int n) */
-#define gift_64_vec_sliced_swapmove(a, b, m, n)                             \
-{                                                                           \
-        uint8x16_t _a;                                                      \
-        shr(_a, a, n);                                                      \
-        const uint8x16_t _t = vandq_u8(veorq_u8(_a, b), m);                 \
-        b = veorq_u8(b, _t);                                                \
-        shl(_a, _t, n);                                                     \
-        a = veorq_u8(a, _a);                                                \
-}
-\end{lstlisting}
+\lstinputlisting[language=c, caption={Bitsliced GIFT swapmove and shift macros}, firstline=50, lastline=79]{../impl/gift/vec_sliced.c}
 
 \subsubsection{Round function}
 We will examine the round function in closer detail and compare the source code
 with the generated assembly.
+
+\lstinputlisting[language=c, caption={Bitsliced GIFT S-box}, firstline=157, lastline=180]{../impl/gift/vec_sliced.c}
+\lstinputlisting[language=c, caption={Bitsliced GIFT permutation}, firstline=205, lastline=216]{../impl/gift/vec_sliced.c}
 
 \begin{lstlisting}[language=c, caption={Round function}]
 for (int round = 0; round < ROUNDS_GIFT_64; round++) {
@@ -207,9 +201,83 @@ Round keys are loaded from memory a few instructions before they are needed;
 assuming all round keys are stored in the L1 cache, loading a
 floating-point/vector register takes 5 cycles. After the load has been
 dispatched to the load execution unit in line \ref{lst:floatload}, the
-processor happily continues chugging away at the instruction stream by issuing
-\texttt{tbl} and \texttt{mvn} $\mu$ops to other execution units.
+processor continues processing the instruction stream by issuing \texttt{tbl}
+and \texttt{mvn} $\mu$ops to other execution units.
 
 These kinds of optimizations are pervasive when programming using higher level
 languages like C and modern-day compilers more often than not outperform
 handcrafted assembly.
+
+\section{Camellia}
+\subsection{Optimized non-SIMD implementation}
+
+An optimized non-SIMD implementation based on the platform-independent
+techniques presented in the original paper is relatively easy to achieve since
+all functional components are already well defined. One thing to take note of
+however is the fact that the specification is based on a big endian
+representation while ARMv8 is a little endian machine. The problem of
+endianness manifests itself whenever a memory-register interaction takes place,
+i.e. for loads and stores. Arithmetic on a register is unaffected since a
+register is always treated as one large number with no conception of addresses.
+
+We will store input data and arrays in Camellia byte-order such that a lower
+array element actually represents a higher numerical value, i.e. the numerical
+value of
+
+\begin{center}
+    \texttt{\{ 0x0123456789abcdefUL, 0xfedcba9876543210UL \}}
+\end{center}
+
+is equal to
+
+\begin{center}
+    \texttt{0x0123456789abcdeffedcba9876543210}
+\end{center}
+
+which is equal to the byte string
+
+\begin{center}
+    \texttt{01 23 45 67 89 ab cd ef fe dc ba 98 76 54 32 10}
+\end{center}
+
+This allows us to change the endianness of the implementation while keeping
+input in the original Camellia byte order. A change in implementation
+endianness manifest itself for example in table lookups where, according to
+Camellia specification, the first byte is expected to be the most significant
+byte:
+
+\lstinputlisting[language=c, caption={Camellia optimized SP function with reverse byte order}, firstline=29, lastline=45]{../impl/camellia/spec_opt.c}
+
+\subsection{Bytesliced implementation}
+
+\subsubsection{Key generation}
+
+A possible approach to storing keys is storing them in bytesliced format so
+they can later be loaded from memory and used directly since we only have 32
+vector registers in total and half of them are already occupied by the current
+cipher state. This can be implemented by first generating 64 bit round keys and
+then filling register $V_i$ with the $i$-th byte by means of
+\texttt{vdupq\_n\_u8} for each key.
+
+\lstinputlisting[language=c, caption={Bytesliced Camellia round key generation}, firstline=237, lastline=266]{../impl/camellia/bytesliced.c}
+
+Another way to implement key generation is not to store the keys bytesliced,
+but rather to store the 64 bit values and create necessary vector registers on
+the fly. This saves 3120 bytes of memory and could show some usefulness for
+memory-constrained environments, but benchmarking shows a performance drop of
+about $3.6\%$. This is due to the fact that \texttt{vdupq\_n\_u8} has a latency
+of 8 cycles and a throughput of only 1, making it a great deal slower than
+simple vector array loads.
+
+\subsubsection{F-function}
+
+The s-function implements matrix multiplication with a given pre- and
+postfilter using the aforementioned strategy.
+
+\lstinputlisting[language=c, caption={Bytesliced Camellia S-box}, firstline=40, lastline=65]{../impl/camellia/bytesliced.c}
+
+Just as before we need to invert the byte order since the first vector $V_0$
+contains all least significant bytes, but the Camellia specification places the
+most significant bytes at the beginning.
+
+\lstinputlisting[language=c, caption={Bytesliced Camellia F-function}, firstline=67, lastline=109]{../impl/camellia/bytesliced.c}

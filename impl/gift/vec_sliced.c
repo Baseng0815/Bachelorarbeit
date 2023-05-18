@@ -1,8 +1,8 @@
-#include "gift_vec_sliced.h"
-
+#include <arm_neon.h>
+#include <stdint.h>
 #include <stddef.h>
-#include <stdio.h>
-#include <string.h>
+
+#include "vec_sliced.h"
 
 static uint64_t pack_shf_u64[] = {
         0x1303120211011000UL, 0x1707160615051404UL, // S0/S1/S2/S3

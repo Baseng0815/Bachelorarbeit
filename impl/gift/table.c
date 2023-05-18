@@ -1,7 +1,7 @@
-#include "gift_table.h"
+#include <stdint.h>
+#include <stddef.h>
 
-#include <stdlib.h>
-#include <string.h>
+#include "table.h"
 
 static const int round_const[] = {
         // rounds 0-15

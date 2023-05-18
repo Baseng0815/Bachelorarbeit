@@ -1,12 +1,12 @@
-#ifndef BYTESLICED_H
-#define BYTESLICED_H
+#pragma once
 
 // 128-bit bitsliced camellia with 16 blocks encrypted in parallel
 
-#include "camellia_keys.h"
 
 #include <stdint.h>
 #include <arm_neon.h>
+
+#include "camellia_keys.h"
 
 void rol32_1(uint8x16x4_t *a);
 
@@ -38,5 +38,3 @@ void camellia_sliced_encrypt_128(uint64_t c[restrict 16][2],
 void camellia_sliced_decrypt_128(uint64_t m[restrict 16][2],
                                  const uint64_t c[restrict 16][2],
                                  struct camellia_rks_sliced_128 *restrict rks);
-
-#endif

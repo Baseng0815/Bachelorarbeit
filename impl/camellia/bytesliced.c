@@ -1,10 +1,10 @@
-#include "bytesliced.h"
-
-#include "spec_opt.h" // need the spec_opt key schedule
-
-#include <stdio.h>
-#include <stdlib.h>
+#include <arm_neon.h>
+#include <stdint.h>
+#include <stddef.h>
 #include <string.h>
+
+#include "bytesliced.h"
+#include "spec_opt.h" // need the spec_opt key schedule
 
 static uint8x16x4_t pack_group;
 static uint8x16x4_t pack_group_inv;

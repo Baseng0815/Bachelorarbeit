@@ -1,7 +1,7 @@
-#include "gift_sliced.h"
+#include <stdint.h>
+#include <stddef.h>
 
-#include <stdio.h>
-#include <string.h>
+#include "sliced.h"
 
 static const int round_constant[] = {
         // rounds 0-15
