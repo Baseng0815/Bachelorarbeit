@@ -276,8 +276,8 @@ postfilter using the aforementioned strategy.
 
 \lstinputlisting[language=c, caption={Bytesliced Camellia S-box}, firstline=40, lastline=65]{../impl/camellia/bytesliced.c}
 
-Just as before we need to invert the byte order since the first vector $V_0$
-contains all least significant bytes, but the Camellia specification places the
-most significant bytes at the beginning.
+Just as before we need to invert the byte order since the first vector
+\texttt{X[0].val[0]} contains all least significant bytes, but the Camellia
+specification places the most significant bytes at the beginning.
 
 \lstinputlisting[language=c, caption={Bytesliced Camellia F-function}, firstline=67, lastline=109]{../impl/camellia/bytesliced.c}

@@ -1,24 +1,40 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as pp
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
-benchmarks_a53 = [
-    ('naive GIFT-64', 2.33),
-    ('naive GIFT-128', 0.79),
-    ('Table-driven GIFT-64', 16.09),
-    ('vperm GIFT-64', 3.93),
-    ('bit-sliced GIFT-64', 150.50),
-    ('naive Camellia-128', 46.71),
-    ('naive Camellia-256', 35.16),
-    ('optimized Camellia-128', 107.31),
-    ('byte-sliced Camellia-128', 138.42)
-]
+labels = ('Naive GIFT-128', 'vperm GIFT-64', 'Naive GIFT-64',
+          'Table-driven GIFT-64', 'Naive Camellia-256', 'Naive Camellia-128',
+          'Optimized Camellia-128', 'Bytesliced Camellia-128',
+          'Bitsliced GIFT-64', )
 
-values = [x[1] for x in benchmarks_a53]
+throughput_a53  = np.array([0.51, 1.10, 1.22, 13.59, 25.50, 33.74, 77.07, 106.20, 108.80])
+throughput_a73  = np.array([0.79, 1.58, 2.33, 16.09, 35.16, 46.71, 107.31, 138.42, 150.50])
+N               = len(throughput_a53)
+indices         = np.arange(N) / 1.5
 
-pp.xlabel('Throughput in MiB/s')
-pp.plot(values, np.zeros_like(values), 'x')
-for a in benchmarks_a53:
-    pp.annotate(a[0], xy=(a[1], 0.01))
-pp.show()
+fig, ax = plt.subplots()
+
+rects_a53 = ax.barh(indices - 0.1, throughput_a53, height=0.2)
+rects_a73 = ax.barh(indices + 0.1, throughput_a73, height=0.2)
+ax.legend((rects_a73, rects_a53), ('Cortex-A73', 'Cortex-A53'), loc='right')
+
+for i in range(N):
+    x0 = throughput_a73[i]
+    x1 = throughput_a53[i]
+    y = indices[i]
+    ax.text(x0 + 0.5, y + 0.05, str(x0), { 'size': 7 })
+    ax.text(x1 + 0.5, y - 0.17, str(x1), { 'size': 7 })
+
+ax.set_xlabel('Throughput (MiB/s)')
+ax.set_ylabel('Strategy')
+ax.set_yticks(indices)
+ax.set_yticklabels(labels)
+ax.set_xticks(range(0, 190, 20))
+ax.grid(True)
+
+for tick in ax.get_yticklabels():
+    tick.set_rotation(45)
+
+fig.savefig('out.pdf', bbox_inches='tight')

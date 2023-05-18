@@ -90,7 +90,7 @@ uint64_t gift_64_permute(const uint64_t cipher_state)
         uint64_t new_cipher_state = 0UL;
 
         for (size_t i = 0; i < 64; i++) {
-                int bit = (cipher_state >> i) & 0x1;
+                const int bit = (cipher_state >> i) & 0x1;
                 new_cipher_state |= (uint64_t)bit << perm_64[i];
         }
 

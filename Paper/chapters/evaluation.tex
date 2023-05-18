@@ -3,7 +3,7 @@
 In this chapter, we will evaluate the strategies through performance
 measurements and discuss advantages, disadvantages and possible use cases.
 
-\section{Benchmarks}
+\section{Performance evaluation}
 
 Performance measurements were taken for each strategy as well as for naive
 reference implementations and are presented through latency $lat$ in cycles per
@@ -22,95 +22,32 @@ to 1. To minimize interference and because the cycle count register is
 core-local, we isolate and utilize one Cortex-A53 and Cortex-A73 core from the
 rest of the system for exclusive benchmarking purposes respectively by use of
 the \texttt{isolcpus} kernel command line parameter and \texttt{taskset}
-command utility.
+command utility. Results can be found in full in Appendix \ref{app:benchmarks}
+and are summarized in Figure \ref{figure:benchmark}.
 
-\subsection{GIFT}
-
-\begin{table}[h!]
+\begin{figure}[h!]
     \centering
-    \caption{Benchmarks for GIFT}
-    \footnotesize
-    \begin{tabular}{llcccc}
-        \toprule
-        & & \multicolumn{2}{c}{Cortex-A53} & \multicolumn{2}{c}{Cortex-A73} \\
-        \cmidrule(lr){3-4}\cmidrule(lr){5-6}
-        Strategy & Component & $lat$ (c/B) & $thr$ (MiB/s) & $lat$ (c/B) & $thr$ (MiB/s) \\
-        \midrule
-        \multirow{2}{*}{Naive GIFT-64} & \texttt{round\_keys} & 223.54 & \multirow{2}{*}{1.22} & 190.34 & \multirow{2}{*}{2.33} \\
-                                                & \texttt{encrypt} & 1367.66 & &  830.49 & \\
-        \cmidrule(lr){2-2}
-                                                & \texttt{ subcells} & 4.64 & & 3.13 & \\
-                                                & \texttt{  permute} & 36.68 & & 21.09 & \\
-        \midrule
-        \multirow{2}{*}{Naive GIFT-128} & \texttt{round\_keys} & 182.91 & \multirow{2}{*}{0.51} & 167.16 & \multirow{2}{*}{0.79} \\
-                                                 & \texttt{encrypt} & 3532.52 & & 2615.89 & \\
-        \cmidrule(lr){2-2}
-                                                 & \texttt{ subcells} & 6.91 & & 2.73 & \\
-                                                 & \texttt{ permute} & 82.68 & & 61.27 & \\
-        \midrule
-        \multirow{2}{*}{Table-driven} & \texttt{round\_keys} & 223.81 & \multirow{2}{*}{13.59} & 190.11 & \multirow{2}{*}{16.09} \\
-                                      & \texttt{encrypt} & 122.11 & & 119.62 & \\
-        \cmidrule(lr){2-2}
-                                      & \texttt{ subperm} & 5.15 & & 4.47 & \\
-        \midrule
-        \multirow{2}{*}{\texttt{vperm} S-box} & \texttt{round\_keys} & 308.12 & \multirow{2}{*}{2.53} & 270.80 & \multirow{2}{*}{3.93} \\
-                                              & \texttt{encrypt} & 658.95 & & 492.29 & \\
-        \cmidrule(lr){2-2}
-                                              & \texttt{ subcells} & 1.63 & & 1.13 & \\
-                                              & \texttt{ permute} & 22.71 & & 15.24 & \\
-                                              & \texttt{ pack} & 7.51 & & 2.94 & \\
-                                              & \texttt{ unpack} & 8.76 & & 5.89 & \\
-        \midrule
-        \multirow{2}{*}{Bitsliced} & \texttt{round\_keys} & 19.93 & \multirow{2}{*}{108.80} & 16.12 & \multirow{2}{*}{150.50} \\
-                                   & \texttt{encrypt} & 16.69 & & 13.98 & \\
-        \cmidrule(lr){2-2}
-                                   & \texttt{ subcells} & 0.41 & & 0.06 & \\
-                                   & \texttt{ permute} & 0.39 & & 0.18 & \\
-                                   & \texttt{ pack} & 1.81 & & 1.34 & \\
-                                   & \texttt{ unpack} & 1.68 & & 1.31 & \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+    \includegraphics[width=\textwidth]{Figures/benchmark_plot.pdf}
+    \caption{Throughput in MiB/s for each strategy and processor type}
+    \label{figure:benchmark}
+\end{figure}
 
-\subsection{Camellia}
+Bit- and bytesliced implementations leveraging SIMD instructions show the
+highest throughput values. Camellia implementations tend to be faster than GIFT
+due to the higher number of rounds as well as the bit permutation slowing down
+GIFT software implementations, differing from Camellia which is byte-oriented.
+Bitsliced GIFT manages to be the fastest due to the bit permutation being
+implemented efficiently through bytewise table lookups. Bytesliced Camellia
+achieves an only slightly lower performance than bitsliced GIFT in spite of
+increased complexity due to the higher number of bytes being encrypted in
+parallel.
 
-\begin{table}[h!]
-    \centering
-    \caption{Benchmarks for Camellia}
-    \scriptsize
-    \begin{tabular}{llcccc}
-        \toprule
-        & & \multicolumn{2}{c}{Cortex-A53} & \multicolumn{2}{c}{Cortex-A73} \\
-        \cmidrule(lr){3-4}\cmidrule(lr){5-6}
-        Strategy & Component & $lat$ (c/B) & $thr$ (MiB/s) & $lat$ (c/B) & $thr$ (MiB/s) \\
-        \midrule
-        \multirow{2}{*}{Naive Camellia-128} & \texttt{round\_keys} & 15.26 & \multirow{2}{*}{33.74} & 11.08 & \multirow{2}{*}{46.71} \\
-                                                & \texttt{encrypt} & 53.44 & &  43.51 & \\
-        \cmidrule(lr){2-2}
-                                                & \texttt{ feistel\_round} & 4.02 & & 2.66 & \\
-                                                & \texttt{ S} & 2.01 & & 0.94 & \\
-                                                & \texttt{ F} & 3.13 & & 2.25 & \\
-                                                & \texttt{ P} & 2.03 & & 1.63 & \\
-                                                & \texttt{ FL} & 1.06 & & 0.72 & \\
-        \midrule
-        \multirow{2}{*}{Naive Camellia-256} & \texttt{round\_keys} & 22.01 & \multirow{2}{*}{25.50} & 16.99 & \multirow{2}{*}{35.16} \\
-                                                 & \texttt{encrypt} & 70.55 & & 58.27 & \\
-        \midrule
-        \multirow{2}{*}{Optimized Camellia-128} & \texttt{round\_keys} & 8.18 & \multirow{2}{*}{77.07} & 5.93 & \multirow{2}{*}{107.31} \\
-                                                & \texttt{encrypt} & 23.63 & & 19.83 & \\
-        \cmidrule(lr){2-2}
-                                                & \texttt{ feistel\_round} & 2.32 & & 1.56 & \\
-                                                & \texttt{ F} & 2.21 & & 1.43 & \\
-                                                & \texttt{ FL} & 1.06 & & 0.69 & \\
-        \midrule
-        \multirow{2}{*}{Bytesliced Camellia-128} & \texttt{round\_keys} & 2.59 & \multirow{2}{*}{106.20} & 2.19 & \multirow{2}{*}{138.42} \\
-                                                & \texttt{encrypt} & 17.14 & & 15.19 & \\
-        \cmidrule(lr){2-2}
-                                                & \texttt{ feistel\_round} & 1.00 & & 0.69 & \\
-                                                & \texttt{ F} & 0.79 & & 0.58 & \\
-                                                & \texttt{ FL} & 0.36 & & 0.12 & \\
-                                                & \texttt{ pack} & 1.04 & & 0.96 & \\
-                                                & \texttt{ unpack} & 0.91 & & 0.83 & \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+Table-driven implementations show a $691\%$ and $230\%$ improvement for GIFT
+and Camellia respectively compared to their naive implementations. GIFT
+especially benefits from this approach due to the elimination of the expensive
+bit permutation layer. While S-box lookup is accelerated for \texttt{vperm}
+GIFT-64, the whole implementation only achieves a throughput of
+$1.58\text{MiB/s}$ due to extremely inefficient packing and unpacking
+operations every round.
+
+\section{Conclusion}
