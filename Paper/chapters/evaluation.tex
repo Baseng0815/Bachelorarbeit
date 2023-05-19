@@ -51,3 +51,61 @@ $1.58\text{MiB/s}$ due to extremely inefficient packing and unpacking
 operations every round.
 
 \section{Conclusion}
+
+We have examined various strategies for efficient implementation of GIFT and
+Camellia and have realized these in the C programming language using NEON
+intrinsics for the ARMv8 platform. Bit- and bytesliced implementations have
+proven themselves especially suited for high-throughput applications on SIMD
+platforms with the added security benefit of being constant-time, thus
+eliminating possible side-channels through e.g. cache timings. Table
+implementations also show good performance characteristics compared to
+non-table approaches and are extremely easy to port to other platforms since
+they don't rely on any specific machine instructions, but are vulnerable to
+cache timing attacks since they access data-dependent memory locations.
+
+GIFT as well as Camellia are suited for low-power hardware as well as bitsliced
+software implementation with GIFT appearing to be more suited towards hardware
+implementation due to the low area requirement of the S-box and bit wiring
+permutation layer.
+
+Vector length determines the number of blocks that can be processed in parallel
+and therefore is the major contributor to performance since a doubling of
+register size with the same instruction throughput generally implies a doubling
+in performance. NEON provides 128 bit registers which is smaller than the 512
+bit registers offered by Intel's AVX-512, but new extensions for ARM like SVE2
+offer flexible vector lengths up to 2048 bits which will result not only in
+further acceleration of traditional compute domains like machine learning or
+multimedia, but also of massively parallelized cryptographic algorithms for
+low-power and embedded systems.
+
+With major vendors like Apple, Qualcomm or Huawei relying on designs licensed
+by ARM for their smartphone processors, the number of ARM devices will continue
+to grow in the future and with it the need for fast crypto algorithms.
+
+\pagebreak
+
+\section{Notes}
+
+Working on this project has allowed me to learn a lot about ARMv8 and its A64
+instruction set as well as SIMD extensions and the use of intrinsics. I have
+written a lot of code for x86-64, but working with a RISC machine with
+comparatively simple instructions and addressing modes felt somewhat simpler
+and more straightforward. The toolchain was surprisingly simple to set up:
+after flashing a custom odroid Linux image to the SD card, setting up SSH,
+copying the sysroot (i.e. \texttt{/lib} and \texttt{/usr}) to my local
+development machine and feeding clang with the correct parameters for
+compilation, I could just copy the binary to the target system and run it
+there. Building, deploying and executing was simple to automate using a
+Makefile.
+
+Aside from tooling, I also learned a lot about efficient cryptography
+implementations and how bitslicing can make a seemingly inefficient cipher like
+GIFT very fast. Most of the time debugging was spent on fixing values for
+permutation tables since it was easy to make a mistake there, but once they
+were corrected the rest was usually pretty simple.
+
+Trying to optimize performance without writing assembler was also very
+educational since constantly making small adjustments to the C program and then
+analyzing the disassembled binaries taught me a lot about what the compiler
+actually does and how it optimizes programs through e.g. loop unrolling and
+inlining as well as combining logical instructions.

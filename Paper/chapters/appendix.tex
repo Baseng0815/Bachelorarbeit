@@ -96,20 +96,30 @@
 \chapter{C source code}
 \label{app:cimpl}
 
-\section{Implementations for SPN}
+\section{GIFT}
 \subsection{Table-based}
 
-\lstinputlisting[language=c, caption={\texttt{gift\_table.h}}]{../impl/gift/table.h}
-\lstinputlisting[language=c, caption={\texttt{gift\_table.c}}]{../impl/gift/table.c}
+\lstinputlisting[language=c, caption={\texttt{gift/table.h}}]{../impl/gift/table.h}
+\lstinputlisting[language=c, caption={\texttt{gift/table.c}}]{../impl/gift/table.c}
 
 \subsection{Using \texttt{vperm}}
 
-\lstinputlisting[language=c, caption={\texttt{gift\_vec\_sbox.h}}]{../impl/gift/vec_sbox.h}
-\lstinputlisting[language=c, caption={\texttt{gift\_vec\_sbox.c}}]{../impl/gift/vec_sbox.c}
+\lstinputlisting[language=c, caption={\texttt{gift/vec\_sbox.h}}]{../impl/gift/vec_sbox.h}
+\lstinputlisting[language=c, caption={\texttt{gift/vec\_sbox.c}}]{../impl/gift/vec_sbox.c}
 
 \subsection{Bitslicing}
 
-\lstinputlisting[language=c, caption={\texttt{gift\_vec\_sliced.h}}]{../impl/gift/vec_sliced.h}
-\lstinputlisting[language=c, caption={\texttt{gift\_vec\_sliced.c}}]{../impl/gift/vec_sliced.c}
+\lstinputlisting[language=c, caption={\texttt{gift/vec\_sliced.h}}]{../impl/gift/vec_sliced.h}
+\lstinputlisting[language=c, caption={\texttt{gift/vec\_sliced.c}}]{../impl/gift/vec_sliced.c}
 
-\chapter{Lorem dolor}
+\section{Camellia}
+
+\subsection{Optimized non-SIMD}
+
+\lstinputlisting[language=c, caption={\texttt{camellia/spec\_opt.h}}]{../impl/camellia/spec_opt.h}
+\lstinputlisting[language=c, caption={\texttt{camellia/spec\_opt.c}}]{../impl/camellia/spec_opt.c}
+
+\subsection{Byteslicing}
+
+\lstinputlisting[language=c, caption={\texttt{camellia/bytesliced.h}}]{../impl/camellia/bytesliced.h}
+\lstinputlisting[language=c, caption={\texttt{camellia/bytesliced.c}}]{../impl/camellia/bytesliced.c}

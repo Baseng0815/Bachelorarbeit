@@ -32,7 +32,7 @@ for different tradeoffs and security concerns.
 
 \subsection{GIFT}
 
-\texttt{GIFT}\cite{gift:2017}, first presented in the \textit{CHES 2017}
+\texttt{GIFT} \cite{gift:2017}, first presented in the \textit{CHES 2017}
 cryptographic hardware and embedded systems conference, is a lightweight block
 cipher based on a previous design called \texttt{PRESENT}, developed in 2007. Its
 goal is to offer maximum security while being extremely light on resources.
@@ -124,7 +124,7 @@ rotating the new state $32$ bits to the right:
 
 \subsection{Camellia}
 
-Camellia\cite{camellia:2001} is a block cipher jointly developed by NTT and
+Camellia \cite{camellia:2001} is a block cipher jointly developed by NTT and
 Mitsubishi Electric Corporation and first published in 2001. Following AES
 specifications, it is able to encrypt 128-bit blocks using either 128-, 196- or
 256-bit keys and claims to possess similar performance and security levels as
@@ -315,12 +315,14 @@ essential in areas like consumer electronics or industrial and IoT
 applications, the need for low-power, high-performance microprocessors has
 increased steadily. With more than 250 billion chips shipped, semiconductors
 designed by ARM power 95\% of mobile devices and have found a great many
-applications due to their high performance and low power
-consumption\cite{armcompany}. The ODROID-N2+\cite{odroidn2} development board
-we are using is based on the big.LITTLE architecture and is powered by a
-quad-core ARM Cortex-A73 processor and a weaker dual-core ARM Cortex-A53 for
-power efficiency. Both these processors are part of the eight generation of ARM
-designs known as ARMv8\cite{armv8:2013}.
+applications due to their high performance and low power consumption
+\cite{armcompany}. The ODROID-N2+ \cite{odroidn2} development board we are
+using for testing is powered by an Amlogic S922X processor with four ARM
+Cortex-A73 and two weaker ARM Cortex-A53 cores based on the big.LITTLE
+architecture combining slower, more power efficient cores with faster, more
+power hungry ones. Both these cores are part of the eight generation of ARM
+designs known as ARMv8 \cite{armv8:2013} released in 2011 and succeeding the
+older 32-bit ARMv7.
 
 ARMv8 defines three architecture profiles for different use cases as well as
 dynamic execution states with corresponding instruction sets. This work will
