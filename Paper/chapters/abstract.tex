@@ -1,8 +1,15 @@
 \chapter*{Abstract}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+Processor designs licensed by ARM are ubiquitous in many areas due to their low
+power consumption and heat generation. Being used in nearly all modern
+smartphones and tablets as well as in many desktop computers and IoT devices,
+the need for securing communications and confidentiality through encryption
+arises. Designing cryptographic algorithms for such low-power environments is
+an active area of research and various designs have been proposed. We examine
+in detail the two block ciphers GIFT and Camellia. For that, we first give an
+introduction of the designs as well as the ARMv8 platform we develop for. We
+then present multiple implementation strategies which leverage ARMv8 SIMD
+processing facilities and realize these in the C programming language using
+NEON intrinsics. In the end, we present performance benchmarks and a brief
+comparison to conclude this work. We find bit- and bytesliced implementations
+employing vector instructions to be the fastest.

@@ -1,6 +1,18 @@
 \chapter{Introduction}
 \section{Notation}
 
+\begin{center}
+    \begin{tabular}{rl}
+        $\ll_n;\gg_n$ & left; right shift by $n$ bits \\
+        $\lll_n;\ggg_n$ & left; right rotate by $n$ bits \\
+        $\land$ & AND \\
+        $\lor$ & OR \\
+        $\oplus$ & XOR \\
+        $A_{(32)}$ & $A$ is 32 bits long \\
+        $||$ & concatenation
+    \end{tabular}
+\end{center}
+
 \section{Block ciphers}
 
 Securing communication channels between different parties has been a long-term
@@ -461,15 +473,11 @@ also array types: \\
 
 \begin{table}[h!]
     \centering
-    \footnotesize
+    \scriptsize
     \caption{Common NEON intrinsics}
     \begin{tabularx}{\textwidth}{llX}
         \toprule
         Intrinsic && Summary \\
-        \midrule
-        \texttt{uint64\_t} & \texttt{vgetq\_lane\_u64(void)} & Extract a single lane \\
-        \midrule
-        \texttt{void} & \texttt{vsetq\_lane\_u64(uint64\_t)} & Insert a single lane \\
         \midrule
         \texttt{uint64x2\_t} & \texttt{vdupq\_n\_u64(uint64\_t)} & Initialize all lanes to same value \\
         \midrule
