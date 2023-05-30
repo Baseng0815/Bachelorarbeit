@@ -1,17 +1,21 @@
 \chapter{Introduction}
-\section{Notation}
 
-\begin{center}
-    \begin{tabular}{rl}
-        $\ll_n;\gg_n$ & left; right shift by $n$ bits \\
-        $\lll_n;\ggg_n$ & left; right rotate by $n$ bits \\
-        $\land$ & AND \\
-        $\lor$ & OR \\
-        $\oplus$ & XOR \\
-        $A_{(32)}$ & $A$ is 32 bits long \\
-        $||$ & concatenation
-    \end{tabular}
-\end{center}
+\section{Motivation}
+
+With small devices and embedded processors becoming ever more ubiquitous and
+essential in areas like consumer electronics or industrial and IoT
+applications, the need for low-power, high-performance microprocessors has
+increased steadily. With more than 250 billion chips shipped, semiconductors
+designed by ARM power 95\% of mobile devices and have found a great many
+applications due to their high performance and low power consumption
+\cite{armcompany}. Following the proliferation of these systems, the need for
+new and efficient cryptographic algorithms to encrypt and decrypt data arises.
+
+Two promising ciphers are GIFT and Camellia. Both of these have not yet been
+implemented for 64-bit ARMv8 - implementations only exist for 32-bit in the case
+of GIFT \cite{fixslicing:2020} and Intel AVX-2 and AES-NI in the case of
+Camellia \cite{bcfastimplx86:2013}. Our contribution is to fill this gap and
+produce efficient implementations of GIFT and Camellia for 64-bit ARMv8.
 
 \section{Block ciphers}
 
@@ -131,7 +135,7 @@ The key state is then updated by individually rotating $k_1$ and $k_0$ and
 rotating the new state $32$ bits to the right:
 
 \[
-    k_7||k_6||\dots||k_1||k_0\leftarrow k_1\ggg 2||k_0\ggg 12||k_7||k_6||\dots||k_3||k_2
+    k_7||k_6||\dots||k_1||k_0\leftarrow k_1\ggg_2||k_0\ggg_{12}||k_7||k_6||\dots||k_3||k_2
 \]
 
 \subsection{Camellia}
@@ -322,23 +326,16 @@ where
 
 \section{The ARMv8 platform}
 
-With small devices and embedded processors becoming ever more ubiquitous and
-essential in areas like consumer electronics or industrial and IoT
-applications, the need for low-power, high-performance microprocessors has
-increased steadily. With more than 250 billion chips shipped, semiconductors
-designed by ARM power 95\% of mobile devices and have found a great many
-applications due to their high performance and low power consumption
-\cite{armcompany}. The ODROID-N2+ \cite{odroidn2} development board we are
-using for testing is powered by an Amlogic S922X processor with four ARM
-Cortex-A73 and two weaker ARM Cortex-A53 cores based on the big.LITTLE
-architecture combining slower, more power efficient cores with faster, more
-power hungry ones. Both these cores are part of the eight generation of ARM
-designs known as ARMv8 \cite{armv8:2013} released in 2011 and succeeding the
-older 32-bit ARMv7.
+The ODROID-N2+ \cite{odroidn2} development board we are using for testing is
+powered by an Amlogic S922X processor with four ARM Cortex-A73 and two weaker
+ARM Cortex-A53 cores based on the big.LITTLE architecture combining slower,
+more power efficient cores with faster, more power hungry ones. Both these
+cores are part of the eight generation of ARM designs known as ARMv8
+\cite{armv8:2013} released in 2011 and succeeding the older 32-bit ARMv7.
 
 ARMv8 defines three architecture profiles for different use cases as well as
 dynamic execution states with corresponding instruction sets. This work will
-focus on the A profile running in the AArch64 state utilizing the A64
+focus on the A profile running in the AArch64 state utilizing the 64-bit A64
 instruction set with NEON and crypto extensions.
 
 \begin{table}[h!]

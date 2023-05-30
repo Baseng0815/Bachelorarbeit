@@ -1,25 +1,26 @@
 \chapter{Implementation}
 
 Implementations in the C programming language for the presented strategies can
-be found in Appendix \ref{app:cimpl}. Although directly writing Assembler code
+be found in Appendix \ref{app:cimpl}. Although directly writing assembler code
 could result in a small performance benefit, this generally increases the work
 necessary by an order of magnitude for only limited results. Instruction-level
 optimization and in particular register allocation is left to the compiler.
 Relying on the compiler mandates a closer study of the generated, optimized
-assembler. All source files were compiled using clang version 15.0.7 and
-optimization level O3.
+assembler code. All source files were compiled using clang version 15.0.7 at
+optimization level -O3.
 
 \section{Pipelining}
 
-Understanding certain choices requires an understanding of the Cortex-A73
-instruction pipeline \cite{a72opt:2015}. Being a superscalar processor, it is
-able to execute more than one instruction per clock cycle by dispatching
-instructions to different execution units working in parallel.
+Understanding certain implementation choices requires an understanding of the
+Cortex-A73 instruction pipeline \cite{a72opt:2015}. Being a superscalar
+processor, it is able to execute more than one instruction per clock cycle by
+dispatching instructions to different execution units working in parallel.
 
-\begin{figure}{h!}
+\begin{figure}[h!]
     \centering
     \includegraphics[width=0.7\textwidth]{Figures/a72pipeline.pdf}
     \caption{High-level overview of the Cortex-A72 instruction pipeline}
+    \label{fig:pipelining}
 \end{figure}
 
 The processor might for example store a calculation result, load a necessary
@@ -50,7 +51,7 @@ an AND operation to get the lowest $n$ bits and finally writing the result into
 the beginning of another register. Due to its usefulness, this operation is
 implemented as \texttt{UBFX} for an unsigned bitfield extract and can be used
 to implement S-box extraction for subperm lookups which would otherwise take
-two or three instructions. Interestingly, the AArch64 instruction set makes
+two or three instructions. Interestingly, the A64 instruction set makes
 heavy use of instruction aliasing. The logical shift left instruction
 \texttt{lsl} for example is an alias of \texttt{UBFX} which itself is an alias
 for \texttt{UBFM}.
@@ -102,7 +103,7 @@ that parameters need to be compile-time constants. We will therefore implement
 
 \subsubsection{Round function}
 We will examine the round function in closer detail and compare the source code
-with the generated assembly.
+with the generated assembler code.
 
 \lstinputlisting[language=c, caption={Bitsliced GIFT S-box}, firstline=157, lastline=180]{../impl/gift/vec_sliced.c}
 \lstinputlisting[language=c, caption={Bitsliced GIFT permutation}, firstline=205, lastline=216]{../impl/gift/vec_sliced.c}
@@ -125,7 +126,7 @@ for (int round = 0; round < ROUNDS_GIFT_64; round++) {
 \end{lstlisting}
 
 \begin{minipage}{.45\textwidth}
-    \begin{lstlisting}[language={[ARM]Assembler}, caption={Round function asm}, escapechar=|]
+    \begin{lstlisting}[language={[ARM]Assembler}, caption={\small Round function assembly}, escapechar=|]
 and     v20.16b, v17.16b, v6.16b
 add     x9, x20, x8
 eor     v20.16b, v20.16b, v16.16b
@@ -206,19 +207,20 @@ and \texttt{mvn} $\mu$ops to other execution units.
 
 These kinds of optimizations are pervasive when programming using higher level
 languages like C and modern-day compilers more often than not outperform
-handcrafted assembly.
+handcrafted assembler code.
 
 \section{Camellia}
 \subsection{Optimized non-SIMD implementation}
 
 An optimized non-SIMD implementation based on the platform-independent
-techniques presented in the original paper is relatively easy to achieve since
-all functional components are already well defined. One thing to take note of
-however is the fact that the specification is based on a big endian
-representation while ARMv8 is a little endian machine. The problem of
-endianness manifests itself whenever a memory-register interaction takes place,
-i.e. for loads and stores. Arithmetic on a register is unaffected since a
-register is always treated as one large number with no conception of addresses.
+techniques presented in the original paper \cite{camellia:2001} is relatively
+easy to achieve since all functional components are already well defined. One
+thing to take note of however is the fact that the specification is based on a
+big endian representation while ARMv8 is a little endian machine. The problem
+of endianness manifests itself whenever a memory-register interaction takes
+place, i.e. for loads and stores. Arithmetic on a register is unaffected since
+a register is always treated as one large number with no conception of
+addresses.
 
 We will store input data and arrays in Camellia byte-order such that a lower
 array element actually represents a higher numerical value, i.e. the numerical

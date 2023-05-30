@@ -11,11 +11,11 @@ byte (c/B) as well as constant throughput $thr$ in MiB/s of the entire
 encryption strategy. Round key derivation is measured separately. Measurements
 of all individual components like packing or permuting have to be viewed as
 upper bounds due to the aforementioned inlining, instruction reordering and
-pipelining (TODO REF HERE) taking place in the actual encryption function.
+pipelining taking place in the actual encryption function.
 
-The AArch64 defines system registers in addition to general-purpose registers
-which are used for system configuration and monitoring. One of these registers
-is the performance monitor cycle count register \texttt{PMCCNTR} which counts
+ARMv8-A defines system registers in addition to general-purpose registers which
+are used for system configuration and monitoring. One of these registers is the
+performance monitor cycle count register \texttt{PMCCNTR} which counts
 processor clock cycles. Access from userspace is disabled by default and can be
 activated through a custom Linux kernel module by setting \texttt{PMUSERENR.EN}
 to 1. To minimize interference and because the cycle count register is
@@ -41,6 +41,20 @@ implemented efficiently through bytewise table lookups. Bytesliced Camellia
 achieves an only slightly lower performance than bitsliced GIFT in spite of
 increased complexity due to the higher number of bytes being encrypted in
 parallel.
+
+The claimed performance of GIFT by the original authors of 2.10 cycles per byte
+utilizing Intel AVX2 is superior to our implementation which only manages to
+achieve 13.98 cycles per byte \cite{gift:2017}.
+
+Our Camellia implementation for ARMv8 achieves a latency of around 15.19 cycles
+per byte, putting it in a similar position as the byte-sliced implementation
+for x86 utilizing AVX and AES-NI instructions which claims a latency of 5.32
+cycles per byte \cite{bcfastimplx86:2013} and surpassing the figure of 20.38
+cycles per byte of the original Camellia paper \cite{camellia:2001}.
+
+The differences in speed are grounded in varying vector register sizes,
+instruction timings and implementation details as well as available vector
+instructions.
 
 Table-driven implementations show a $691\%$ and $230\%$ improvement for GIFT
 and Camellia respectively compared to their naive implementations. GIFT
@@ -100,7 +114,7 @@ GIFT very fast. Most of the time debugging was spent on fixing values for
 permutation tables since it was easy to make a mistake there, but once they
 were corrected the rest was usually pretty simple.
 
-Trying to optimize performance without writing assembler was also very
+Trying to optimize performance without writing assembler code was also very
 educational since constantly making small adjustments to the C program and then
 analyzing the disassembled binaries taught me a lot about what the compiler
 actually does and how it optimizes programs through e.g. loop unrolling and

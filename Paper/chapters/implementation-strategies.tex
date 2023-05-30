@@ -3,7 +3,7 @@
 Due to the structural differences of SPN- and Feistel network-based ciphers, we
 shall analyze these two separately.
 
-\section{Strategies for \texttt{GIFT}}
+\section{Strategies for GIFT}
 
 Three implementation strategies for substitution-permutation networks are
 introduced by \cite{implx86:2014}:
@@ -20,9 +20,8 @@ Table-driven programming is a simple way to increase performance of operations
 by tabulating the results, therefore requiring only a single memory access to
 acquire the result. This approach is obviously limited to manageable table
 sizes, so while tabulating a function like the AES S-box
-$S_{AES}:\F{8}\rightarrow \F{8}$ requires only $2^{11}$ space,
-tabulating the \texttt{GIFT} permutation layer
-$P_{GIFT}:\F{64}\rightarrow \F{64}$ would require
+$S_{AES}:\F{8}\rightarrow \F{8}$ requires only $2^{11}$ space, tabulating the
+GIFT permutation layer $P_{GIFT}:\F{64}\rightarrow \F{64}$ would require
 $2^{70}$ space, which is totally unfeasible.
 
 A common approach is to tabulate the output of each S-box, including the
@@ -33,13 +32,13 @@ $T_i:\F{s}\rightarrow \F{n}$ representing substitution with subsequent
 permutation of that single S-box. The cipher state before round key addition is
 then given by $\bigoplus_{i=0}^{\frac{n}{s}-1}{T_i(m_i)}$ for each $s$-bit
 message chunk $m_i$. This approach requires space of
-$\frac{n}{s}|\F{s}|n=\frac{n^2 2^s}{s}$ bits, which, for \texttt{GIFT-64},
+$\frac{n}{s}|\F{s}|n=\frac{n^2 2^s}{s}$ bits, which, for GIFT-64,
 results in a manageable size of $\frac{64^2 2^4}{4}=2^{14}$ bits which equals
 $16$ KiB.
 
 \subsubsection{Constructing the tables}
 
-For \texttt{GIFT-64}, table construction is relatively straightforward and can
+For GIFT-64, table construction is relatively straightforward and can
 be done as follows:
 
 \begin{lstlisting}[caption={Table construction algorithm}, label={lst:tables}, escapechar=|]
@@ -77,7 +76,7 @@ and second S-box.
     \end{array}
 \]
 
-The tables for \texttt{GIFT-128} can be generated in a similar way by looping
+The tables for GIFT-128 can be generated in a similar way by looping
 through all 32 S-boxes instead of 16 on line \ref{lst:tablesbox}.
 
 \subsection{Using \texttt{vperm}}
@@ -124,7 +123,7 @@ registers as a machine capable of executing $n$ bitwise operations at
 once \cite{desslicing:1997}. Bitslicing offers a performance advantage by
 splitting up $n$ bits into $m$ slices to achieve a more efficient
 representation which can exploit this bitwise parallelism. The structure of
-\texttt{GIFT} naturally offers possibilities for bitslicing. We split the
+GIFT naturally offers possibilities for bitslicing. We split the
 cipher state bits $b_{63}b_{62}\dots b_0$ into four slices $S_i,
 i\in\{0,1,2,3\}$ such that the $i$-th slice contains all $i$-th bits of the
 individual S-boxes. This is equivalent to transposing the bit matrix.
@@ -149,8 +148,7 @@ individual S-boxes. This is equivalent to transposing the bit matrix.
 This representation offers multiple advantages. We first note that computation
 of the S-box can be executed in parallel, similar to the \texttt{vperm}
 technique above. This can be done by finding a bitwise instruction sequence to
-apply the S-box which has already been proposed by the original \texttt{GIFT}
-authors:
+apply the S-box which has already been proposed by the original GIFT authors:
 
 \begin{align*}
     S_1&\leftarrow S_1\oplus (S_0\land S_2) \\
@@ -197,7 +195,7 @@ size $BS$ and register size $RS$, the following must hold:
     8n\cdot BS=4m\cdot RS
 \]
 
-In the case of \texttt{GIFT-64} with $BS=64$ and ARM NEON with $RS=128$, we get
+In the case of GIFT-64 with $BS=64$ and ARM NEON with $RS=128$, we get
 
 \[
     8n\cdot 64=4m\cdot 128\Leftrightarrow n=m
@@ -360,9 +358,9 @@ together.
 \subsection{Optimized non-SIMD}
 
 The original paper proposes various platform-independent ways to implement
-Camellia efficiently. Only some of these apply to the ARMv8 architecture since
-features like the inline barrel shifter and bitfield manipulation instructions
-generally offer better performance.
+Camellia efficiently \cite{camellia:2001}. Only some of these apply to the
+ARMv8 architecture since features like the inline barrel shifter and bitfield
+manipulation instructions generally offer better performance.
 
 \begin{description}
     \item[XOR cancellation property in key schedule:]
@@ -397,9 +395,9 @@ generally offer better performance.
             & SP_5(y_{5(8)})=(&s_3(y_5),&& 0,&& s_3(y_5),&& s_3(y_5),&& s_3(y_5),&& 0,&& s_3(y_5),&& s_3(y_5)&) \\
             & SP_6(y_{6(8)})=(&s_4(y_6),&& s_4(y_6),&& 0,&& s_4(y_6),&& s_4(y_6),&& s_4(y_6),&& 0,&& s_4(y_6)&) \\
             & SP_7(y_{7(8)})=(&s_1(y_7),&& s_1(y_7),&& s_1(y_7),&& 0,&& s_1(y_7),&& s_1(y_7),&& s_1(y_7),&& 0&)
-        \end{alignat*}
+        \end{alignat*},
 
-        , we can compute $(P\circ S)(X_{(64)})$ using only 8 table lookups and 7
+        we can compute $(P\circ S)(X_{(64)})$ using only 8 table lookups and 7
         XORs in the following way:
 
         \[
